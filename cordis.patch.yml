@@ -1,0 +1,5 @@
+# Bundle patch: one row mounts the (stateless) host half; `dsh.client` in
+# package.json makes the web app load ./client as the browser half.
+- insert:
+    - id: dsh-file-actions
+      name: '@jidekaixin2dian/dsh-file-actions'

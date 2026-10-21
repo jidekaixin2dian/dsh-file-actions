@@ -1,0 +1,9 @@
+node_modules/
+*.tgz
+*.log
+test-e2e/run/
+test-e2e/.chrome-profile/
+test-e2e/.chrome-shoot/
+test-e2e/token.txt
+test-e2e/instance-*.log
+test-e2e/explore/

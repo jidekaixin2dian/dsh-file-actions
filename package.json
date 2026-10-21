@@ -1,0 +1,57 @@
+{
+  "name": "@jidekaixin2dian/dsh-file-actions",
+  "version": "0.1.0",
+  "description": "Codex-style right-click file menu for DeepSeek Harness: open, open with, reveal, copy path, copy contents and save as on every file reference in the chat.",
+  "icon": "icon.svg",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE",
+    "icon.svg",
+    "assets"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jidekaixin2dian/dsh-file-actions.git"
+  },
+  "homepage": "https://github.com/jidekaixin2dian/dsh-file-actions#readme",
+  "bugs": {
+    "url": "https://github.com/jidekaixin2dian/dsh-file-actions/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "context-menu",
+    "file-actions",
+    "codex"
+  ],
+  "author": "jidekaixin2dian",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-files"
+      ]
+    }
+  },
+  "license": "MIT"
+}
