@@ -118,7 +118,7 @@ await evaluate(`(() => {
   root.innerHTML = [
     '<div data-test="title"><span title=${JSON.stringify(project + '/package.json')}>package.json</span></div>',
     '<div data-test="attr" data-files-path=${JSON.stringify(project + '/icon.svg')}>icon.svg</div>',
-    '<div data-test="img" data-files-path=${JSON.stringify(project + '/icon.svg')}>icon.svg</div>',
+    '<div data-test="img" data-files-path=${JSON.stringify(project + '/assets/menu-light.png')}>menu-light.png</div>',
   ].join('')
   document.body.appendChild(root)
   return true
@@ -173,6 +173,32 @@ await evaluate(`(() => {
 })()`)
 await sleep(700)
 await shoot('menu-openwith-dark.png')
+
+// The association filter: 17 apps, type to narrow.
+await evaluate(`(() => {
+  const input = document.querySelector('[data-dfa-menu].dfa-sub .dfa-search')
+  if (!input) return false
+  input.value = 'code'
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  return true
+})()`)
+await sleep(400)
+await shoot('menu-submenu-search-dark.png')
+
+// The image thumbnail.
+await evaluate(`(() => { document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return true })()`)
+await sleep(400)
+await fire('[data-test="img"]', 10)
+for (let i = 0; i < 40; i += 1) {
+  const ready = await evaluate(`(() => {
+    const img = document.querySelector('[data-dfa-menu] .dfa-thumb img')
+    return Boolean(img && img.naturalWidth > 0)
+  })()`)
+  if (ready) break
+  await sleep(150)
+}
+await sleep(300)
+await shoot('menu-image-dark.png')
 
 // Light theme
 await evaluate(`(() => { document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return true })()`)

@@ -1,12 +1,11 @@
-## dsh-file-actions v0.1.2
+## dsh-file-actions v0.1.3
 
-A UI pass over the menu.
+Three things the menu was missing once the list got long:
 
-- **Header = file identity**: a 28px glyph tile tinted by file kind, the file name, the workspace-relative path in monospace, and the size on the right. Files outside the workspace show their absolute path and an *Outside workspace* badge.
-- **Tighter rhythm**: 30px rows, 16px icons, a hairline under the header, separators that stay visible in the light theme too.
-- **Submenu**: sticky "Open with · N apps" header, the default application marked with a *Default* badge instead of a bare checkmark, and a scrollable list.
-- **Keyboard**: the focused row gets a 1.5px inset ring only when the menu was opened from the keyboard, and a footer shows ↑↓ / Enter / Esc hints.
-- **Motion**: a 90ms fade-and-lift on open, disabled under `prefers-reduced-motion`.
-- `aria-activedescendant` now follows the focused row in both the menu and the submenu.
+- **Search in "Open with"** — the association submenu grows a filter box as soon as it has more than seven applications. Type to narrow, ↑↓ to move, Enter to launch, Escape clears the filter before it closes the submenu.
+- **Scroll fades** — a clipped list now fades at its edges instead of stopping mid-row, so it reads as scrollable.
+- **Image thumbnails** — right-click an image (or an SVG) and the menu shows a real preview above the file header, loaded through the same `workspaceFiles.readBytes` route and cached per path.
 
-Verification: 30 unit tests, 30 real-app assertions on DSH 0.2.1-rc.2.
+Also in this release: `screenshots.json` at the repository root, which is what the dsh-market card actually reads for its preview strip.
+
+Verification: 30 unit tests, 39 real-app assertions on DSH 0.2.1-rc.2.

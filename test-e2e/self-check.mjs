@@ -147,6 +147,7 @@ async function main() {
     anchor: `${project}/README.md`,
     text: `${project}/lib/client.js`,
     bogus: `${project}/does-not-exist.js`,
+    img: `${project}/assets/menu-dark.png`,
   }
   await evaluate(`(() => {
     document.getElementById('dfa-selftest')?.remove()
@@ -160,6 +161,7 @@ async function main() {
       '<div data-test="text">' + ${JSON.stringify(fixtures.text)} + '</div>',
       '<div data-test="bogus"><span title=${JSON.stringify(fixtures.bogus)}>does-not-exist.js</span></div>',
       '<div data-test="kbd" tabindex="0" title=${JSON.stringify(fixtures.attr)}>icon.svg</div>',
+      '<div data-test="img" data-files-path=${JSON.stringify(fixtures.img)}>menu-dark.png</div>',
     ].join('')
     document.body.appendChild(root)
     return true
@@ -300,6 +302,51 @@ async function main() {
     return sub.querySelector('[data-focus="true"]')?.getAttribute('data-dfa-item') || 'none'
   })()`)
   check('ArrowRight opens the submenu with a focused row', Boolean(subFocus) && subFocus !== 'none', String(subFocus))
+
+  // A 17-app list gets a filter box and scroll fades.
+  const subState = await evaluate(`(() => {
+    const sub = document.querySelector('[data-dfa-menu].dfa-sub')
+    const body = sub && sub.querySelector('.dfa-body')
+    return {
+      search: Boolean(sub && sub.querySelector('.dfa-search')),
+      fade: body ? body.dataset.fade || 'none' : null,
+      rows: sub ? [...sub.querySelectorAll('[data-dfa-item]')].filter((node) => node.getClientRects().length > 0).length : 0,
+    }
+  })()`)
+  check('the long association list has a search box', subState.search, JSON.stringify(subState))
+  check('the scrollable submenu shows an edge fade', subState.fade === 'bottom' || subState.fade === 'both', String(subState.fade))
+
+  const filtered = await evaluate(`(() => {
+    const input = document.querySelector('[data-dfa-menu].dfa-sub .dfa-search')
+    input.value = 'code'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    const sub = document.querySelector('[data-dfa-menu].dfa-sub')
+    const visible = [...sub.querySelectorAll('[data-dfa-item]')].filter((node) => node.getClientRects().length > 0)
+    return { count: visible.length, first: visible[0] ? visible[0].getAttribute('data-dfa-item') : '', empty: !sub.querySelector('.dfa-empty').hidden }
+  })()`)
+  check('typing filters the app list', filtered.count > 0 && filtered.count < subState.rows, JSON.stringify(filtered))
+  check('the filter matches by name', /code/i.test(filtered.first), filtered.first)
+
+  const noMatch = await evaluate(`(() => {
+    const input = document.querySelector('[data-dfa-menu].dfa-sub .dfa-search')
+    input.value = 'zzz-not-an-app'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    const sub = document.querySelector('[data-dfa-menu].dfa-sub')
+    return {
+      visible: [...sub.querySelectorAll('[data-dfa-item]')].filter((node) => node.getClientRects().length > 0).length,
+      empty: !sub.querySelector('.dfa-empty').hidden,
+    }
+  })()`)
+  check('an unmatched filter shows the empty hint', noMatch.visible === 0 && noMatch.empty, JSON.stringify(noMatch))
+
+  // First Escape clears the non-empty filter, the second closes the submenu.
+  await pressKey('Escape')
+  await sleep(200)
+  const cleared = await evaluate(`(() => ({
+    value: document.querySelector('[data-dfa-menu].dfa-sub .dfa-search')?.value ?? null,
+    sub: !!document.querySelector('[data-dfa-menu].dfa-sub'),
+  }))()`)
+  check('Escape clears the filter before closing', cleared.value === '' && cleared.sub === true, JSON.stringify(cleared))
   await pressKey('Escape')
   await sleep(200)
   const subClosed = await evaluate(`(() => ({
@@ -319,6 +366,24 @@ async function main() {
   check('svg is classified as a web page', attrMenu && attrMenu.kind === 'html', attrMenu && attrMenu.kind)
   check('svg offers the browser row', attrMenu && attrMenu.items.includes('browser'))
   check('svg offers copy contents (it is text)', attrMenu && attrMenu.items.includes('copyContents'))
+  await closeMenu()
+
+  // 2b. image carrier: the menu shows a real thumbnail
+  const fireImg = await fire('[data-test="img"]')
+  const imgMenu = await waitMenu()
+  console.log('fire(img):', fireImg, 'menu:', JSON.stringify(imgMenu))
+  check('menu opens on an image', Boolean(imgMenu), fireImg)
+  check('image is classified as an image', imgMenu && imgMenu.kind === 'image', imgMenu && imgMenu.kind)
+  let thumb = null
+  for (let i = 0; i < 50; i += 1) {
+    thumb = await evaluate(`(() => {
+      const img = document.querySelector('[data-dfa-menu] .dfa-thumb img')
+      return img ? { w: img.naturalWidth, h: img.naturalHeight } : null
+    })()`)
+    if (thumb && thumb.w > 0) break
+    await sleep(150)
+  }
+  check('image menu renders a thumbnail', Boolean(thumb) && thumb.w > 0, thumb ? `${thumb.w}x${thumb.h}` : 'none')
   await closeMenu()
 
   // 3. anchor carrier, markdown file

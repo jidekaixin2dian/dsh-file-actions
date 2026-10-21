@@ -4,9 +4,9 @@
 
 对齐 OpenAI Codex 桌面端的文件引用菜单。Codex 的 UI 是闭源的（官方开源清单把 IDE 扩展标为 *Not open source*，桌面端甚至不在清单里），所以本插件按可观测行为与公开 issue 还原功能，而不是移植代码。
 
-![文件菜单（深色）](assets/menu-dark.png)
+![文件右键菜单预览（深色）](assets/preview-dark.png)
 
-![打开方式子菜单](assets/open-with-dark.png)
+![打开方式子菜单预览](assets/preview-open-with.png)
 
 ## 功能
 
@@ -26,11 +26,17 @@
 
 按文件类型收敛菜单：图片/PDF 没有「复制文件内容」，Office/压缩包/二进制只有外部动作，目录没有「另存为」。
 
-菜单头部是一块文件身份区：按类型着色的字形块、文件名、工作区相对路径，右侧是大小；工作区外的文件显示绝对路径并标「工作区外」。系统关联查询慢时菜单先出现，编辑器与「打开方式」行随后补入；子菜单有吸顶的计数标题，列表可滚动。
+菜单头部是一块文件身份区：按类型着色的字形块、文件名、工作区相对路径，右侧是大小；工作区外的文件显示绝对路径并标「工作区外」。系统关联查询慢时菜单先出现，编辑器与「打开方式」行随后补入。
+
+「打开方式」子菜单有吸顶的计数标题和**搜索框**（应用多于 7 个时出现），列表可滚动，滚动时上下边缘渐隐；**图片 / SVG 文件会在头部上方显示缩略图预览**。
 
 键盘：`Shift+F10` 或菜单键在焦点元素上打开同一菜单；`↑ ↓ Home End` 移动，`→` 展开子菜单，`←` 收起，`Enter` 执行，`Esc` 关闭。键盘打开时菜单底部会显示这三条提示。
 
-![文件菜单（浅色）](assets/menu-light.png)
+![应用搜索过滤预览](assets/preview-search.png)
+
+![图片文件缩略图预览](assets/preview-image.png)
+
+![文件右键菜单预览（浅色）](assets/preview-light.png)
 
 ## 安装
 
@@ -95,14 +101,14 @@ pwsh -File .\scripts\reinstall.ps1 -CheckOnly         # 只看会执行什么
 
 - 单测：`node --test`，30 个，覆盖路径解析、动作参数、工作区内外判定、相对路径与头部字段、类型分类、菜单生成、Remote 信封。
 - 组合层：`dsh --profile dfa-check --dump-config` 能看到 `id: dsh-file-actions`；首页 boot graph 含 `@jidekaixin2dian/dsh-file-actions/client.js`。
-- 真机：`test-e2e/` 用 scratch profile + headless Chromium/CDP，30 项断言全过（激活、就绪、四种载体、类型分类、异步关联行、焦点进入菜单、滚动不关闭、右键菜单自身不叠加、键盘走行与 Enter 执行、子菜单键盘可达、无效路径不弹菜单）。
+- 真机：`test-e2e/` 用 scratch profile + headless Chromium/CDP，39 项断言全过（激活、就绪、四种载体、类型分类、异步关联行、焦点进入菜单、滚动不关闭、右键菜单自身不叠加、键盘走行与 Enter 执行、子菜单键盘可达、无效路径不弹菜单）。
 - 真机端到端（`test-e2e/verify.mjs`，真鼠标右键右侧文件树行）：**9 PASS / 0 FAIL** —— 菜单出现且为 7 项、点「复制路径」后剪贴板拿到绝对路径 `D:\dsh\plugin\_scratch\asar.mjs`、toast「路径已复制」。
 - 真实 DOM 依据：`test-e2e/ground-truth.json`（真机 CDP + 真鼠标右键采集的载体与祖先链），完整报告见 `test-e2e/REPORT.md`。
 
 ```powershell
 cd test-e2e
 pwsh -File .\start-instance.ps1   # 建 dfa-check profile、装插件、起 5499
-node .\self-check.mjs             # 30/30
+node .\self-check.mjs             # 39/39
 pwsh -File .\start-instance.ps1 -Stop
 ```
 

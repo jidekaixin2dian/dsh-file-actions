@@ -4,9 +4,9 @@ Right-click file menu for DeepSeek Harness: open, open with, reveal, copy path, 
 
 Aligned with the file-reference menu of OpenAI Codex's desktop app. Codex's UI is closed source (the official open-source list marks the IDE extension as *Not open source* and does not list the desktop app at all), so this plugin reproduces the observable behaviour instead of porting code.
 
-![File menu (dark)](assets/menu-dark.png)
+![File context menu preview (dark)](assets/preview-dark.png)
 
-![Open with submenu](assets/open-with-dark.png)
+![Open-with submenu preview](assets/preview-open-with.png)
 
 ## What it does
 
@@ -26,11 +26,17 @@ Right-click any blue file name — inline code, delivery cards, changed-file row
 
 The rows narrow by file type: images/PDF have no *Copy file contents*, Office/archive/binary files only get the external actions, directories have no *Save as*.
 
-The header is a file-identity block: a kind-tinted glyph tile, the file name, the workspace-relative path, and the size on the right. A file outside the workspace shows its absolute path and an *Outside workspace* badge. The menu opens before the OS association query answers, and the editor / *Open with* rows drop in afterwards; the submenu carries a sticky count header and scrolls.
+The header is a file-identity block: a kind-tinted glyph tile, the file name, the workspace-relative path, and the size on the right. A file outside the workspace shows its absolute path and an *Outside workspace* badge. The menu opens before the OS association query answers, and the editor / *Open with* rows drop in afterwards.
+
+The *Open with* submenu carries a sticky count header and a **search box** (once there are more than seven applications), scrolls with faded edges, and **image / SVG files show a thumbnail preview** above the header.
 
 Keyboard: `Shift+F10` or the menu key opens the same menu on the focused element; `↑ ↓ Home End` move, `→` opens the submenu, `←` closes it, `Enter` runs, `Esc` dismisses. A keyboard-opened menu shows those three hints in its footer.
 
-![File menu (light)](assets/menu-light.png)
+![Application search preview](assets/preview-search.png)
+
+![Image thumbnail preview](assets/preview-image.png)
+
+![File context menu preview (light)](assets/preview-light.png)
 
 ## Install
 
@@ -70,14 +76,14 @@ The menu appears immediately; the OS association list (a Shell query that costs 
 
 - Unit tests: `node --test` (17 cases).
 - Composition: `dsh --profile dfa-check --dump-config` lists the row; the boot graph carries `@jidekaixin2dian/dsh-file-actions/client.js`.
-- Real app: `test-e2e/` drives a scratch profile through headless Chromium/CDP — 30 assertions (activation, readiness, four carriers, type classification, async association rows, focus into the menu, scroll keeping it open, no stacking on a second right-click, keyboard row walk plus Enter, keyboard-reachable submenu, unknown path left alone).
+- Real app: `test-e2e/` drives a scratch profile through headless Chromium/CDP — 39 assertions (activation, readiness, four carriers, type classification, async association rows, focus into the menu, scroll keeping it open, no stacking on a second right-click, keyboard row walk plus Enter, keyboard-reachable submenu, unknown path left alone).
 - Real end-to-end (`test-e2e/verify.mjs`, a genuine mouse right-click on a Sidebar file-tree row): **9 PASS / 0 FAIL** — the menu opens with 7 rows, and 复制路径 leaves the absolute path on the clipboard.
 - DOM evidence: `test-e2e/ground-truth.json`, captured with real right-clicks on the running app; full report in `test-e2e/REPORT.md`.
 
 ```powershell
 cd test-e2e
 pwsh -File .\start-instance.ps1   # create the dfa-check profile, install, serve on 5499
-node .\self-check.mjs             # 30/30
+node .\self-check.mjs             # 39/39
 pwsh -File .\start-instance.ps1 -Stop
 ```
 
