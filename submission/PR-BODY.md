@@ -17,7 +17,7 @@ Rows narrow by file type: images and PDFs have no copy-contents, Office/archive/
 
 ## How it is built
 
-A single client half. Opening and revealing go through the shipped Session Remote (`session.openWorkspacePath`, `session.workspacePathApplications`); contents and save-as go through `workspaceFiles.readBytes`. The plugin builds no command line and widens no path authorization — every candidate path is validated by the host's own `stat`/`list` before the menu appears, and a candidate that fails leaves the native menu alone. `package.json` declares `dsh.bundle` plus a root `cordis.patch.yml`; the host half is an empty `apply()` that only mounts the bundle row.
+A single client half. Opening and revealing go through the shipped Session Remote (`session.openWorkspacePath`, `session.workspacePathApplications`); contents and save-as go through `workspaceFiles.readBytes`. The plugin builds no command line and widens no path authorization — every candidate path is validated by the host's own `stat`/`list` before the menu appears, and a path that fails validation opens no menu at all (a structured carrier reports "file not found"; a bare text guess stays silent, which is why text candidates must look like a real file). `package.json` declares `dsh.bundle` plus a root `cordis.patch.yml`; the host half is an empty `apply()` that only mounts the bundle row.
 
 ## Checks run before submitting
 

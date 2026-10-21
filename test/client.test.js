@@ -232,3 +232,135 @@ test('mimeOf covers the browser-previewable kinds', () => {
   assert.equal(api.mimeOf('a.unknownext'), 'application/octet-stream')
   assert.equal(api.mimeOf('a.ts'), 'text/plain;charset=utf-8')
 })
+
+// Regression: `extname` returns '' for every one of these, so before the fix a
+// repository's most-copied files were classified as binary.
+test('extension-less repository files are text, not binary', () => {
+  for (const name of ['Dockerfile', 'Makefile', 'LICENSE', 'README', 'CHANGELOG', 'Procfile', '.gitignore', '.env', '.npmrc', 'CMakeLists.txt']) {
+    const kind = api.classify(name, false)
+    assert.equal(kind.kind, 'text', name)
+    assert.equal(kind.canCopyText, true, name)
+    assert.equal(api.mimeOf(name), 'text/plain;charset=utf-8', name)
+  }
+  assert.equal(api.classify('Dockerfile', false).kind, 'text')
+  assert.equal(api.classify('node_modules/.bin/tool', false).kind, 'binary')
+  assert.equal(api.classify('archive.tar.gz', false).kind, 'archive')
+  assert.equal(api.isTextName('Dockerfile'), true)
+  assert.equal(api.isTextName('a.png'), false)
+  assert.equal(api.isTextName(''), false)
+})
+
+test('a Dockerfile gets the copy-contents row', () => {
+  const model = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\Dockerfile',
+    displayPath: 'Dockerfile',
+    isDir: false,
+    apps: [],
+    bytes: 120,
+    t: zh,
+  })
+  const ids = model.sections.flat().map((item) => item.id)
+  assert.equal(ids.includes('copyContents'), true)
+  assert.equal(ids.includes('browser'), false)
+  assert.match(model.meta, /文本/)
+})
+
+test('a binary file keeps the external actions but never copy-contents', () => {
+  const model = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\tool.exe',
+    displayPath: 'tool.exe',
+    isDir: false,
+    apps: [],
+    bytes: 900000,
+    t: zh,
+  })
+  const ids = model.sections.flat().map((item) => item.id)
+  assert.equal(ids.includes('copyContents'), false)
+  assert.equal(ids.includes('browser'), false)
+  assert.equal(ids.includes('saveAs'), true)
+  assert.equal(ids.includes('copyPath'), true)
+})
+
+test('the copy cap is exported for the action layer', () => {
+  assert.equal(api.MAX_COPY_BYTES, 2 * 1024 * 1024)
+})
+
+// Regression: asking for MAX + 1 trips the Host's own `length > maxBytes` guard,
+// which made 复制文件内容 fail for every file, not just large ones.
+test('copy contents never asks the Host for more than its cap', async () => {
+  const calls = []
+  const bridge = {
+    readBytes: async (_sessionId, _path, options) => {
+      calls.push(options)
+      return { data: new TextEncoder().encode('hello'), eof: true }
+    },
+  }
+  await api.dispatch({ action: 'copyContents' }, { absolutePath: 'D:\\r\\a.ts', displayPath: 'a.ts' }, { bridge, t: zh, sessionId: 's' })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].range.length, api.MAX_COPY_BYTES)
+})
+
+test('a file over the cap never crosses the wire', async () => {
+  let called = false
+  const bridge = {
+    readBytes: async () => {
+      called = true
+      return { data: new Uint8Array(0), eof: true }
+    },
+  }
+  await api.dispatch(
+    { action: 'copyContents' },
+    { absolutePath: 'D:\\r\\big.bin', displayPath: 'big.bin', bytes: api.MAX_COPY_BYTES + 1 },
+    { bridge, t: zh, sessionId: 's' },
+  )
+  assert.equal(called, false)
+})
+
+test('save as reads the whole file, with no window', async () => {
+  const calls = []
+  const bridge = {
+    readBytes: async (_sessionId, _path, options) => {
+      calls.push(options)
+      return { data: new Uint8Array(3), eof: true }
+    },
+  }
+  await api.dispatch({ action: 'saveAs' }, { absolutePath: 'D:\\r\\a.ts', displayPath: 'a.ts' }, { bridge, t: zh, sessionId: 's' })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].range, undefined)
+})
+
+test('soft sources must look like a real file', () => {
+  assert.equal(api.softPath('src/app.ts'), true)
+  assert.equal(api.softPath('D:\\repo\\a.ts'), true)
+  assert.equal(api.softPath('2026/10/22 12:00'), false)
+  assert.equal(api.softPath('2/3 files'), false)
+  assert.equal(api.softPath('src/app.ts · 2.1 KB'), false)
+  assert.equal(api.softPath(''), false)
+})
+
+test('isInside compares a root and a path case-insensitively', () => {
+  assert.equal(api.isInside('D:\\repo', 'D:\\repo\\src\\a.ts'), true)
+  assert.equal(api.isInside('D:\\repo', 'D:\\repo'), true)
+  assert.equal(api.isInside('D:\\repo', 'D:\\repo2\\a.ts'), false)
+  assert.equal(api.isInside('D:\\repo', 'D:\\other\\a.ts'), false)
+  assert.equal(api.isInside('/home/me/repo', '/home/me/repo/a.ts'), true)
+  assert.equal(api.isInside('', 'D:\\a'), false)
+})
+
+test('a path outside the workspace is labelled in the header', () => {
+  const inside = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\a.ts', displayPath: 'a.ts', isDir: false, apps: [], bytes: 10, t: zh,
+  })
+  const outside = api.buildMenuModel({
+    absolutePath: 'C:\\Users\\me\\.ssh\\id_rsa', displayPath: 'C:\\Users\\me\\.ssh\\id_rsa', isDir: false, apps: [], bytes: 10, outsideWorkspace: true, t: zh,
+  })
+  assert.equal(inside.meta.includes(zh.outsideWorkspace), false)
+  assert.equal(outside.meta.includes(zh.outsideWorkspace), true)
+})
+
+test('.env.local style dotfiles are text', () => {
+  assert.equal(api.classify('.env.local', false).kind, 'text')
+  assert.equal(api.classify('.env.production', false).kind, 'text')
+  assert.equal(api.classify('.prettierrc', false).kind, 'text')
+  assert.equal(api.classify('.tar.gz', false).kind, 'archive')
+})

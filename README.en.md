@@ -57,23 +57,25 @@ The menu appears immediately; the OS association list (a Shell query that costs 
 ## Known limitations
 
 - Not a native menu: no system font scaling or menu animation.
-- The association list comes from the OS, not from a DSH application catalog.
+- The association list comes from the OS, not from a DSH application catalog; an empty or failed query is not cached, so the next right-click retries.
 - Save as uses the browser download dialog with the original file name.
-- Copy contents is capped at 2 MB.
+- Copy contents is capped at 2 MB, and a file over the cap is refused from its stat size without crossing the wire.
+- "Binary" means "NUL after UTF-8 decoding": UTF-16 text is refused as binary, and a NUL-free binary can be copied as mojibake.
+- Reads go through the Host's `workspaceFiles`, which also serves paths **outside** the session workspace. The menu header labels them 工作区外 / Outside workspace, but does not block them — the path is on screen.
 - Web surface only; the TUI has no DOM to right-click.
 
 ## Verification
 
 - Unit tests: `node --test` (17 cases).
 - Composition: `dsh --profile dfa-check --dump-config` lists the row; the boot graph carries `@jidekaixin2dian/dsh-file-actions/client.js`.
-- Real app: `test-e2e/` drives a scratch profile through headless Chromium/CDP — 21 assertions (activation, readiness marker, four carriers, type classification, async association rows, copy-path toast, unknown path left alone).
+- Real app: `test-e2e/` drives a scratch profile through headless Chromium/CDP — 27 assertions (activation, readiness, four carriers, type classification, async association rows, focus into the menu, scroll keeping it open, no stacking on a second right-click, keyboard row walk plus Enter, keyboard-reachable submenu, unknown path left alone).
 - Real end-to-end (`test-e2e/verify.mjs`, a genuine mouse right-click on a Sidebar file-tree row): **9 PASS / 0 FAIL** — the menu opens with 7 rows, and 复制路径 leaves the absolute path on the clipboard.
 - DOM evidence: `test-e2e/ground-truth.json`, captured with real right-clicks on the running app; full report in `test-e2e/REPORT.md`.
 
 ```powershell
 cd test-e2e
 pwsh -File .\start-instance.ps1   # create the dfa-check profile, install, serve on 5499
-node .\self-check.mjs             # 21/21
+node .\self-check.mjs             # 27/27
 pwsh -File .\start-instance.ps1 -Stop
 ```
 

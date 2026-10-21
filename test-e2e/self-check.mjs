@@ -233,15 +233,76 @@ async function main() {
   const enriched = await waitForItems(['editor', 'openWith'], 15000)
   check('association rows arrive while the menu is open', Boolean(enriched), enriched && enriched.labels.join('|'))
 
-  // copy path through the real click handler
-  await evaluate(`(() => { document.querySelector('[data-dfa-item="copyPath"]')?.click(); return true })()`)
+  // Focus must move into the menu, or the composer keeps eating the keystrokes.
+  const focusInside = await evaluate(`(() => document.activeElement?.hasAttribute?.('data-dfa-menu') === true)()`)
+  check('focus moves into the menu', focusInside)
+
+  // Scrolling the menu's own list (or the long "open with" submenu) must not be
+  // mistaken for the page scrolling away from the anchor.
+  const scrollKeeps = await evaluate(`(() => {
+    const menu = document.querySelector('[data-dfa-menu]:not(.dfa-sub)')
+    menu.scrollTop = 30
+    menu.dispatchEvent(new Event('scroll', { bubbles: false }))
+    return !!document.querySelector('[data-dfa-menu]')
+  })()`)
+  check('scrolling inside the menu keeps it open', scrollKeeps)
+
+  // A right-click on the menu itself must not stack a second menu on top.
+  const stacked = await evaluate(`(() => {
+    const menu = document.querySelector('[data-dfa-menu]:not(.dfa-sub)')
+    menu.querySelector('.dfa-name').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+    return document.querySelectorAll('[data-dfa-menu]:not(.dfa-sub)').length
+  })()`)
+  check('right-click inside the menu does not stack a second menu', stacked === 1, `menus=${stacked}`)
+
+  // Keyboard path: ArrowDown walks the rows, Enter runs the focused one.
+  const pressKey = (key) => evaluate(`(() => {
+    const target = document.activeElement || document.body
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, bubbles: true, cancelable: true }))
+    return true
+  })()`)
+  let focusedId = null
+  for (let i = 0; i < 12; i += 1) {
+    await pressKey('ArrowDown')
+    focusedId = await evaluate(`document.querySelector('[data-dfa-item][data-focus="true"]')?.getAttribute('data-dfa-item') || null`)
+    if (focusedId === 'copyPath') break
+  }
+  check('ArrowDown walks the rows', Boolean(focusedId), String(focusedId))
+  await pressKey('Enter')
   await sleep(700)
   const afterCopy = await evaluate(`(() => ({
     toast: document.querySelector('.dfa-toast')?.textContent || '',
     menuGone: !document.querySelector('[data-dfa-menu]'),
   }))()`)
-  check('copy path reports success', afterCopy.toast.includes('复制') || afterCopy.toast.includes('copied'), afterCopy.toast)
+  check('Enter runs the focused row (copy path)', afterCopy.toast.includes('复制') || afterCopy.toast.includes('copied'), afterCopy.toast)
   check('menu closes after an action', afterCopy.menuGone)
+  await closeMenu()
+
+  // The keyboard path must reach the "open with" submenu too.
+  await fire('[data-test="title"] span')
+  await waitMenu(8000)
+  for (let i = 0; i < 12; i += 1) {
+    await pressKey('ArrowDown')
+    const id = await evaluate(`document.querySelector('[data-dfa-item][data-focus="true"]')?.getAttribute('data-dfa-item') || null`)
+    if (id === 'openWith') break
+  }
+  await pressKey('ArrowRight')
+  await sleep(250)
+  const subFocus = await evaluate(`(() => {
+    const sub = document.querySelector('[data-dfa-menu].dfa-sub')
+    if (!sub) return null
+    return sub.querySelector('[data-focus="true"]')?.getAttribute('data-dfa-item') || 'none'
+  })()`)
+  check('ArrowRight opens the submenu with a focused row', Boolean(subFocus) && subFocus !== 'none', String(subFocus))
+  await pressKey('Escape')
+  await sleep(200)
+  const subClosed = await evaluate(`(() => ({
+    sub: !!document.querySelector('[data-dfa-menu].dfa-sub'),
+    main: !!document.querySelector('[data-dfa-menu]:not(.dfa-sub)'),
+  }))()`)
+  check('Escape closes the submenu first', subClosed.sub === false && subClosed.main === true, JSON.stringify(subClosed))
+  await pressKey('Escape')
+  await sleep(200)
   await closeMenu()
 
   // 2. attribute carrier, svg file

@@ -64,7 +64,7 @@ pwsh -File .\scripts\reinstall.ps1 -CheckOnly         # 只看会执行什么
 3. **元素自身文本**：工具行 `button[class*="fileLink"]` 只有相对路径文本、没有 title。
 4. **光标处 token**：`caretRangeFromPoint` 兜底，用于行内 code。
 
-所有候选都要先通过 `workspaceFiles.stat`（文件）或 `list`（目录）验证才会弹菜单；验证失败的引用不拦截原生菜单。可编辑区域（输入框、`contenteditable`）和真正的网页链接保持 Chromium 自带菜单。
+所有候选都要先通过 `workspaceFiles.stat`（文件）或 `list`（目录）验证才会弹菜单。右键按下时原生菜单就已被接管，所以验证失败时不会出现任何菜单——因此纯文本猜测额外要求「像真实文件」（绝对路径或带扩展名），避免把 `2026/10/22 12:00`、`2/3 files` 这类普通文本的右键菜单吞掉；结构化载体（data 属性、交付卡片、`file:` 链接）验证失败时会提示「找不到该文件」。可编辑区域（输入框、`contenteditable`）和真正的网页链接保持 Chromium 自带菜单。
 
 菜单**立即出现**，系统关联应用（Windows 上要查 Shell 关联，冷启动 2–4 秒）异步补进去并按扩展名缓存。
 
@@ -82,23 +82,25 @@ pwsh -File .\scripts\reinstall.ps1 -CheckOnly         # 只看会执行什么
 ## 已知限制
 
 - **不是原生菜单**：不跟随系统菜单的字体缩放与动画。
-- **打开方式列表来自系统文件关联**，不是 DSH 的应用目录；未注册关联的程序不会出现。
+- **打开方式列表来自系统文件关联**，不是 DSH 的应用目录；未注册关联的程序不会出现。查询失败或返回空时不会缓存，下次右键会重试。
 - **另存为走浏览器下载**，不提供「另存到指定目录」的原生对话框。
-- **内容复制上限 2 MB**，更大的文件请用「另存为」。
+- **内容复制上限 2 MB**，更大的文件请用「另存为」；超过上限的文件不会跨线传输（先用 stat 的字节数判断）。
+- **「二进制」的判定是「UTF-8 解码后含 NUL」**：UTF-16 文本会被判成二进制而拿不到「复制文件内容」，不含 NUL 的二进制则可能被当文本复制。
+- **读取走 Host 的 `workspaceFiles`，允许会话工作区之外的路径**（DSH 本身如此）。菜单头会标「工作区外」，但不会阻止读取——路径就明写在菜单上。
 - **仅 Web 面**：DSH 的 TUI/CLI 没有可右键的 DOM。
 
 ## 验证
 
-- 单测：`node --test`，17 个，覆盖路径解析、类型分类、菜单生成、Remote 信封。
+- 单测：`node --test`，28 个，覆盖路径解析、动作参数、工作区内外判定、类型分类、菜单生成、Remote 信封。
 - 组合层：`dsh --profile dfa-check --dump-config` 能看到 `id: dsh-file-actions`；首页 boot graph 含 `@jidekaixin2dian/dsh-file-actions/client.js`。
-- 真机：`test-e2e/` 用 scratch profile + headless Chromium/CDP，21 项断言全过（插件激活、就绪标记、四种载体识别、类型分类、异步关联行、复制路径 toast、无效路径不劫持原生菜单）。
+- 真机：`test-e2e/` 用 scratch profile + headless Chromium/CDP，27 项断言全过（激活、就绪、四种载体、类型分类、异步关联行、焦点进入菜单、滚动不关闭、右键菜单自身不叠加、键盘走行与 Enter 执行、子菜单键盘可达、无效路径不弹菜单）。
 - 真机端到端（`test-e2e/verify.mjs`，真鼠标右键右侧文件树行）：**9 PASS / 0 FAIL** —— 菜单出现且为 7 项、点「复制路径」后剪贴板拿到绝对路径 `D:\dsh\plugin\_scratch\asar.mjs`、toast「路径已复制」。
 - 真实 DOM 依据：`test-e2e/ground-truth.json`（真机 CDP + 真鼠标右键采集的载体与祖先链），完整报告见 `test-e2e/REPORT.md`。
 
 ```powershell
 cd test-e2e
 pwsh -File .\start-instance.ps1   # 建 dfa-check profile、装插件、起 5499
-node .\self-check.mjs             # 21/21
+node .\self-check.mjs             # 27/27
 pwsh -File .\start-instance.ps1 -Stop
 ```
 

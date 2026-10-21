@@ -1,18 +1,14 @@
-## dsh-file-actions v0.1.0
+## dsh-file-actions v0.1.1
 
-Codex-style right-click file menu for DeepSeek Harness.
+A review pass over v0.1.0. The visible fixes:
 
-Right-click any file reference in the chat — inline code, delivery cards, changed-file rows, tool-call rows, the right Sidebar file tree, the document preview header:
+- **Copy file contents works again.** v0.1.0 asked the Host for 2 MB + 1 byte, which its own window cap rejects — every copy failed with "read failed". It now asks for exactly the cap and reads `eof` to detect an oversized file, and refuses from the stat size before anything crosses the wire.
+- **The menu no longer closes itself** when it takes focus (a descendant `blur` reached the window capture listener), and it **follows the anchor row when the transcript scrolls** instead of vanishing mid-stream.
+- **A right-click on the menu no longer stacks a second menu**, and prose that merely contains a slash (`2026/10/22 12:00`, `2/3 files`) no longer swallows Chromium's own menu.
+- **Extension-less repository files are text again**: Dockerfile, Makefile, LICENSE, `.gitignore`, `.env.local` get "copy file contents".
+- **Keyboard reaches the submenu**: ArrowRight opens 打开方式 with a focused row; ArrowUp/Down, Enter and Escape stay inside it.
+- **Open in browser** opens the window inside the click gesture, so the popup blocker leaves it alone.
+- Paths outside the session workspace are labelled 工作区外 / Outside workspace in the header.
+- Empty association answers are no longer cached, so a missing 打开方式 retries on the next right-click.
 
-- 打开文件 / 打开文件夹
-- 在 VS Code（或检测到的编辑器）中打开
-- 打开方式 ▸ 系统关联应用，带真实图标与默认勾选
-- 在浏览器中打开（HTML / SVG / PDF / 图片 / Markdown）
-- 在资源管理器中显示
-- 复制路径 / 复制相对路径
-- 复制文件内容（文本，上限 2 MB）
-- 另存为…
-
-Client-only: opening and revealing go through DSH's `session.openWorkspacePath`, associations through `session.workspacePathApplications`, contents and save-as through `workspaceFiles.readBytes`. No host command, no widened path authorization.
-
-Verified: 17 unit tests, 21 real-app assertions (headless Chromium/CDP), and a genuine mouse right-click run (9 PASS) on DSH 0.2.1-rc.2.
+Verification: 28 unit tests, 27 real-app assertions on DSH 0.2.1-rc.2 (headless Chromium/CDP), plus a genuine mouse right-click run.
