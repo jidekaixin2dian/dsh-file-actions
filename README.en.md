@@ -77,6 +77,14 @@ node .\self-check.mjs             # 21/21
 pwsh -File .\start-instance.ps1 -Stop
 ```
 
+## Plugin market
+
+Submitted to the dsh-market catalog ([awesome-dsh-plugin PR #8534](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/8534)); the entry file lives in [`submission/`](submission/).
+
+- Repo and release: https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest
+- The entry's `tarball` points at `releases/latest/download/dsh-file-actions.tgz` — version-free, so it keeps resolving across releases, and it is exactly what a one-click market install downloads (verified by installing that URL into a clean profile).
+- The gate wants a repository at least one day old: it was created 2026-10-21T17:17Z, so CI turns green after 2026-10-22T17:17Z (`regate.yml` re-runs every six hours).
+
 ## License
 
 MIT

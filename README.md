@@ -102,6 +102,14 @@ node .\self-check.mjs             # 21/21
 pwsh -File .\start-instance.ps1 -Stop
 ```
 
+## 插件市场
+
+已提交到 dsh-market 的插件目录（[awesome-dsh-plugin PR #8534](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/8534)），条目文件在 [`submission/`](submission/)。
+
+- 仓库与 Release：https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest
+- 条目里的 `tarball` 指向 `releases/latest/download/dsh-file-actions.tgz`（版本无关，换版本不失效），也就是市场一键安装实际下载的地址；已用 `pnpm add <该 URL>` 在干净 profile 里实测装得上。
+- 门禁要求仓库创建满 1 天：仓库建于 2026-10-21T17:17Z，2026-10-22T17:17Z 之后 CI 自动转绿（`regate.yml` 每 6 小时重跑）。
+
 ## License
 
 MIT

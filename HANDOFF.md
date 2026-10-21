@@ -188,9 +188,35 @@ pwsh -File .\scripts\reinstall.ps1 -Profile desktop
 
 ---
 
-## 7. 待办
+## 7. 市场接入（2026-10-22 完成）
+
+| 项 | 值 |
+|---|---|
+| 公开仓库 | https://github.com/jidekaixin2dian/dsh-file-actions（2026-10-21T17:17:41Z 创建，topics：`dsh-plugin` `deepseek-harness` `context-menu` `dsh`） |
+| Release | `v0.1.0`，资产 **`dsh-file-actions.tgz`**（234,201 B，版本无关命名，`releases/latest/download/` 可长期解析） |
+| 条目 | `submission/jidekaixin2dian__dsh-file-actions.yml`（`category: ui`，`tarball` 指向上面那个 latest URL） |
+| PR | https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/8534（fork 分支 `jidekaixin2dian:add-dsh-file-actions`） |
+| 本地预检 | `generate-readme.mjs` → 两份 README 各 +1 行；`check-submission.mjs --base origin/main` → **唯一失败是仓库年龄 0.0 天**，manifest/归档检查都过 |
+| 门禁 | 仓库满 1 天即 `2026-10-22T17:17:41Z`（+08 2026-10-23 01:17）后自动转绿，`regate.yml` 约 6h 重跑一次 |
+| 市场安装路径 | 已在干净 profile `dfa-market` 里用 `pnpm add <release tarball URL>` 实测装成功 |
+
+本地跑市场预检（不要提交 README 改动，合并时由上游生成）：
+
+```powershell
+# 市场仓克隆：C:\Users\Aether\Documents\deepseek-harness\default-workspace\work\refs\awesome-dsh-plugin
+# npm ci 在本机会被 EALLOWREMOTE 拒绝，改用临时依赖目录做 junction：
+#   D:\dsh\plugin\_scratch\market-deps  (pnpm add js-yaml marked semver)
+#   New-Item -ItemType Junction -Path <clone>\node_modules -Target D:\dsh\plugin\_scratch\market-deps\node_modules
+$env:GITHUB_TOKEN = gh auth token
+node scripts/generate-readme.mjs
+node scripts/check-submission.mjs --base origin/main
+```
+
+---
+
+## 8. 待办
 
 1. 用 `test-e2e/verify.mjs` 在真实会话里右键**工具行文件链接**与**交付卡片**（需要一轮成功 turn 产生 `presented` 事件）。
 2. 手动点一次"在资源管理器中显示 / 另存为 / 在浏览器中打开"，确认外部程序行为。
-3. `pnpm pack` 出 tgz、发 GitHub Release、市场提交材料（可复用 dsh-toolgate 的 `submission/` 模板）。
+3. 等 PR #8534 门禁转绿后跟进维护者意见；合并后市场 UI 才会出现条目。
 4. 可选：菜单打开时把行内 code 链接临时加个下划线/背景提示（当前依赖原生样式，没有视觉暗示）。
