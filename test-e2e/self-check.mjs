@@ -159,6 +159,7 @@ async function main() {
       '<div data-test="anchor"><a title=${JSON.stringify(fixtures.anchor)} href="#">README.md</a></div>',
       '<div data-test="text">' + ${JSON.stringify(fixtures.text)} + '</div>',
       '<div data-test="bogus"><span title=${JSON.stringify(fixtures.bogus)}>does-not-exist.js</span></div>',
+      '<div data-test="kbd" tabindex="0" title=${JSON.stringify(fixtures.attr)}>icon.svg</div>',
     ].join('')
     document.body.appendChild(root)
     return true
@@ -183,7 +184,11 @@ async function main() {
     if (!menu) return null
     return {
       title: menu.querySelector('.dfa-name')?.textContent || '',
-      meta: menu.querySelector('.dfa-meta')?.textContent || '',
+      path: menu.querySelector('.dfa-path')?.textContent || '',
+      kind: menu.querySelector('.dfa-tile')?.getAttribute('data-kind') || '',
+      size: menu.querySelector('.dfa-size')?.textContent || '',
+      badge: menu.querySelector('.dfa-badge')?.textContent || '',
+      foot: menu.querySelector('.dfa-foot')?.textContent || '',
       items: [...menu.querySelectorAll('[data-dfa-item]')].map((node) => node.getAttribute('data-dfa-item')),
       labels: [...menu.querySelectorAll('.dfa-label')].map((node) => node.textContent),
     }
@@ -217,7 +222,8 @@ async function main() {
   check('text file offers copy contents', titleMenu && titleMenu.items.includes('copyContents'))
   check('text file offers save as', titleMenu && titleMenu.items.includes('saveAs'))
   check('text file offers reveal', titleMenu && titleMenu.items.includes('reveal'))
-  check('menu shows a type + size line', titleMenu && /文本/.test(titleMenu.meta), titleMenu && titleMenu.meta)
+  check('menu shows a file-type tile and size', titleMenu && titleMenu.kind === 'text' && /1\.4 KB/.test(titleMenu.size), titleMenu && (titleMenu.kind + ' / ' + titleMenu.size))
+  check('menu shows the workspace-relative path', titleMenu && /dsh-file-actions\/package\.json$/.test(titleMenu.path), titleMenu && titleMenu.path)
 
   // The OS association query is slow on Windows; the rows must still land while
   // the menu is open.
@@ -310,7 +316,7 @@ async function main() {
   const attrMenu = await waitMenu()
   console.log('fire(attr):', fire2, 'menu:', JSON.stringify(attrMenu))
   check('menu opens on a data-files-path carrier', Boolean(attrMenu), fire2)
-  check('svg is classified as a web page', attrMenu && /网页/.test(attrMenu.meta), attrMenu && attrMenu.meta)
+  check('svg is classified as a web page', attrMenu && attrMenu.kind === 'html', attrMenu && attrMenu.kind)
   check('svg offers the browser row', attrMenu && attrMenu.items.includes('browser'))
   check('svg offers copy contents (it is text)', attrMenu && attrMenu.items.includes('copyContents'))
   await closeMenu()
@@ -320,7 +326,7 @@ async function main() {
   const anchorMenu = await waitMenu()
   console.log('fire(anchor):', fire3, 'menu:', JSON.stringify(anchorMenu))
   check('menu opens on an anchor carrier', Boolean(anchorMenu), fire3)
-  check('markdown is classified as Markdown', anchorMenu && /Markdown/.test(anchorMenu.meta), anchorMenu && anchorMenu.meta)
+  check('markdown is classified as Markdown', anchorMenu && anchorMenu.kind === 'markdown', anchorMenu && anchorMenu.kind)
   await closeMenu()
 
   // 4. bare text token
@@ -335,6 +341,19 @@ async function main() {
   const fire5 = await fire('[data-test="bogus"] span')
   const bogusMenu = await waitMenu(3000)
   check('unknown path leaves no menu behind', bogusMenu === null, fire5)
+  await closeMenu()
+
+  // Shift+F10 opens the same menu from the keyboard, with the key hints.
+  await evaluate(`(() => {
+    const el = document.querySelector('[data-test="kbd"]')
+    el.focus()
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true }))
+    return true
+  })()`)
+  const kbdMenu = await waitMenu(8000)
+  check('Shift+F10 opens the menu', Boolean(kbdMenu), kbdMenu && kbdMenu.title)
+  check('keyboard-opened menu shows the key hints', Boolean(kbdMenu && kbdMenu.foot), kbdMenu && kbdMenu.foot)
+  await closeMenu()
 
   cdp.close()
   const failed = results.filter((entry) => !entry.ok)

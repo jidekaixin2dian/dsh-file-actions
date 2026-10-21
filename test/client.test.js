@@ -364,3 +364,33 @@ test('.env.local style dotfiles are text', () => {
   assert.equal(api.classify('.prettierrc', false).kind, 'text')
   assert.equal(api.classify('.tar.gz', false).kind, 'archive')
 })
+
+test('relativeTo strips the workspace root and refuses outsiders', () => {
+  assert.equal(api.relativeTo('D:\\dsh\\plugin', 'D:\\dsh\\plugin\\dsh-file-actions\\package.json'), 'dsh-file-actions/package.json')
+  assert.equal(api.relativeTo('D:\\dsh\\plugin', 'D:\\other\\a.ts'), '')
+  assert.equal(api.relativeTo('/home/me/repo', '/home/me/repo/a.ts'), 'a.ts')
+  assert.equal(api.relativeTo('D:\\repo', 'D:\\repo'), '')
+  assert.equal(api.relativeTo('', 'D:\\repo\\a.ts'), '')
+})
+
+test('the header path prefers the workspace-relative form', () => {
+  const inside = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\src\\a.ts', displayPath: 'a.ts', isDir: false, apps: [], bytes: 10, cwd: 'D:\\repo', t: zh,
+  })
+  assert.equal(inside.pathLine, 'src/a.ts')
+  assert.equal(inside.sizeLabel, '10 B')
+  assert.equal(inside.kindLabel, '文本')
+
+  const outside = api.buildMenuModel({
+    absolutePath: 'C:\\Users\\me\\.ssh\\id_rsa', displayPath: 'id_rsa', isDir: false, apps: [], bytes: 10,
+    cwd: 'D:\\repo', outsideWorkspace: true, t: zh,
+  })
+  assert.equal(outside.pathLine, 'C:\\Users\\me\\.ssh\\id_rsa')
+  assert.equal(outside.outsideWorkspace, true)
+
+  const dir = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\lib', displayPath: 'lib', isDir: true, apps: [], cwd: 'D:\\repo', t: zh,
+  })
+  assert.equal(dir.sizeLabel, '')
+  assert.equal(dir.pathLine, 'lib')
+})

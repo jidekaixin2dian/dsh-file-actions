@@ -246,3 +246,21 @@ node scripts/check-submission.mjs --base origin/main
 回归：`node --test` 28/28（新增 11 个用例，含「复制请求不超过宿主上限」「超限文件不跨线」「软候选必须像文件」「工作区内外判定」「.env.local 是文本」）；`self-check.mjs` 27/27（新增焦点、滚动、右键不叠加、键盘走行 + Enter、子菜单键盘可达）。
 
 未采纳：把复制/另存为硬限制在会话工作区内。DSH 的 `workspaceFiles` 本身允许工作区外读取，插件用的是同一条已授权路由，硬拦会砍掉 `~/.dsh` 这类正常用途；改为菜单头标注「工作区外」并写进已知限制。
+---
+
+## 10. 2026-10-22 前端一轮（0.1.2）
+
+菜单从「能用」改到「像 DSH 自己的一部分」。设计约束：这是宿主内嵌的开发者工具菜单，独特性只花在**文件身份**上，其余保持安静。
+
+| 改动 | 说明 |
+|---|---|
+| 头部文件身份区 | 28px 按类型着色的字形块（text/markdown/html/pdf/image/office/archive/binary/dir 九种色相，`color-mix` 13% 底 + 30% 描边）+ 文件名 + 工作区相对路径（mono 10.5px）+ 右侧大小；工作区外显示绝对路径并标「工作区外」 |
+| 路径来源 | 新增纯函数 `relativeTo(root, path)`：优先工作区相对路径，拿不到再退回 DOM 里的显示路径 |
+| 分隔与层次 | 头部下边线 + 段落分隔线统一用 `border-l2`（`l1` 在浅色主题下几乎看不见）；菜单内边距 5px、圆角沿用 `--dsw-radius-lg` |
+| 行 | 28px → 30px，图标 16px，hover 70ms 过渡；键盘态用 `data-keyboard` 切换，聚焦行加 1.5px 内描边（只在键盘打开时出现） |
+| 子菜单 | 吸顶标题「打开方式 · N 个应用」、默认应用改为「默认」徽标、可滚动（`scrollbar-gutter`） |
+| 动效 | 90ms 淡入 + 2px 上移，`prefers-reduced-motion` 下关闭 |
+| 键盘提示 | 键盘打开时底部显示「↑↓ 选择 · Enter 执行 · Esc 关闭」 |
+| 无障碍 | `aria-activedescendant` 跟随主菜单与子菜单的聚焦行；行有稳定 id |
+
+验证：单测 30/30（新增 `relativeTo`、头部字段）；真机 30/30（新增 Shift+F10 打开、键盘提示、头部类型与路径、相对路径断言）。截图见 `assets/menu-dark.png` / `menu-light.png` / `open-with-dark.png`，2x 放大复核过对齐与浅色分隔线。

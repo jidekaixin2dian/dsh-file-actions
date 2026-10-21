@@ -1,6 +1,6 @@
 {
   "name": "@jidekaixin2dian/dsh-file-actions",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Codex-style right-click file menu for DeepSeek Harness: open, open with, reveal, copy path, copy contents and save as on every file reference in the chat.",
   "icon": "icon.svg",
   "type": "module",
