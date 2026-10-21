@@ -119,6 +119,8 @@ pwsh -File .\start-instance.ps1 -Stop
 - 仓库与 Release：https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest
 - 条目里的 `tarball` 指向 `releases/latest/download/dsh-file-actions.tgz`（版本无关，换版本不失效），也就是市场一键安装实际下载的地址；已用 `pnpm add <该 URL>` 在干净 profile 里实测装得上。
 - 门禁要求仓库创建满 1 天：仓库建于 2026-10-21T17:17Z，2026-10-22T17:17Z 之后 CI 自动转绿（`regate.yml` 每 6 小时重跑）。
+- 市场卡片的预览图来自仓库根目录的 [screenshots.json](screenshots.json)（合并后由市场构建读取）。
+- 发布讨论：[Show Your Plugins! #10576](https://github.com/deepseek-ai/deepseek-harness/discussions/10576)。
 
 ## License
 

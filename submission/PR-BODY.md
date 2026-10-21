@@ -27,7 +27,7 @@ A single client half. Opening and revealing go through the shipped Session Remot
 - The keyboard path (Shift+F10, arrow keys, Enter, Escape) and the open-with submenu are covered by the same driver.
 - `dsh --profile <scratch> --dump-config` composes the row; the boot graph serves `@jidekaixin2dian/dsh-file-actions/client.js`.
 
-The release is v0.1.2 — a review pass fixed a copy-contents regression, the menu closing on focus/scroll and extension-less files being treated as binary, and a UI pass gave the menu a file-identity header, tighter rows and keyboard hints.
+The release is v0.1.3 — a review pass fixed a copy-contents regression and the menu closing on focus/scroll; a UI pass gave the menu a file-identity header, keyboard hints and an image thumbnail; and the association submenu gained search plus scroll fades. The repository root now carries screenshots.json (5 previews) for the market card.
 
 The repo declares `dsh.bundle.patch`, carries the `dsh-plugin` topic, and the release asset `dsh-file-actions.tgz` is version-free so `releases/latest/download/` keeps resolving.
 

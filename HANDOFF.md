@@ -264,3 +264,20 @@ node scripts/check-submission.mjs --base origin/main
 | 无障碍 | `aria-activedescendant` 跟随主菜单与子菜单的聚焦行；行有稳定 id |
 
 验证：单测 30/30（新增 `relativeTo`、头部字段）；真机 30/30（新增 Shift+F10 打开、键盘提示、头部类型与路径、相对路径断言）。截图见 `assets/menu-dark.png` / `menu-light.png` / `open-with-dark.png`，2x 放大复核过对齐与浅色分隔线。
+---
+
+## 11. 2026-10-22 长列表三件套 + 市场预览 + 宣传（0.1.3）
+
+| 改动 | 说明 |
+|---|---|
+| 「打开方式」搜索 | 应用 > 7 个时出现过滤框；`filterSubmenu()` 按名称子串过滤，`subVisible` 维护可见行；Esc 先清空再关闭；键盘打开时自动聚焦输入框 |
+| 滚动渐隐 | 菜单改成 `.dfa-menu`（外壳，含边框阴影）+ `.dfa-body`（滚动容器）；`updateFade()` 按 scrollTop/scrollHeight 设 `data-fade=top/bottom/both`，CSS 用 `mask-image` 渐变 |
+| 图片缩略图 | 图片与 SVG 在头部上方显示真实预览；`loadThumb()` 走 `workspaceFiles.readBytes`，8 MB 上限，按路径缓存（最多 12 个 blob URL，超出回收最旧） |
+| 修 bug | `.dfa-item{display:flex}` 会盖掉 UA 的 `[hidden]{display:none}`，过滤看似生效实则没隐藏——补 `.dfa-menu [hidden]{display:none!important}`，e2e 断言改成 `getClientRects().length` 而不是 `.hidden` |
+| 市场预览 | 新增仓库根 `screenshots.json`（5 张相对路径）。市场卡片**只读这个文件**，不读 entry、不读 README；entry 只接受 url/name/category/description/tarball |
+| 预览图规格 | `test-e2e/shoot-market.mjs` 用 CDP `clip` + `scale:2` 截 3:2 区域，输出 1800×1200 PNG；卡片盒子 132×88（contain）、对话框 220×150（cover），声明图不设硬门槛但建议 ≥1280×800 |
+| 宣传 | 已发 DSH 官方仓库 **Show Your Plugins!** 讨论：https://github.com/deepseek-ai/deepseek-harness/discussions/10576 ；文稿与重发脚本在 `submission/promo/`（`post.mjs` 支持 `--update <discussionId>`） |
+
+**踩坑**：`shoot-market.mjs` 的 Chrome profile（`test-e2e/.chrome-market/`）一度被 `git add -A` 带进提交并推送；已 `git rm --cached` + `git commit --amend` + 强推，并把 v0.1.3 tag 删掉重建（否则 tag 指向含 profile 的旧提交）。`.gitignore` 已补 `test-e2e/.chrome-market/`。**以后提交前先 `git status` 看一眼。**
+
+市场侧生效时间：合并 PR 后，市场仓库下一次构建（有人合并触发的 push build，通常几分钟；否则夜间 02:23 UTC）才会把 `screenshots.json` 读进 `plugins.json`；作者推自己的仓库不触发市场构建。
