@@ -198,7 +198,8 @@ pwsh -File .\scripts\reinstall.ps1 -Profile desktop
 | PR | https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/8534（fork 分支 `jidekaixin2dian:add-dsh-file-actions`） |
 | 本地预检 | `generate-readme.mjs` → 两份 README 各 +1 行；`check-submission.mjs --base origin/main` → **唯一失败是仓库年龄 0.0 天**，manifest/归档检查都过 |
 | 门禁 | 仓库满 1 天即 `2026-10-22T17:17:41Z`（+08 2026-10-23 01:17）后自动转绿，`regate.yml` 约 6h 重跑一次 |
-| 市场安装路径 | 已在干净 profile `dfa-market` 里用 `pnpm add <release tarball URL>` 实测装成功 |
+| 市场安装路径 | 已在干净 profile `dfa-market` 里用 `pnpm add <release tarball URL>` 实测：装成功（5.1s，lockfile 记 sha512），`--dump-config` 组合出条目、boot graph 供 bundle、页面 `data-dfa-ready=1`、`self-check.mjs` **21/21**。报告见 `test-e2e/REPORT-MARKET.md` |
+| PR CI | 结构类检查（stale-fork / 文件名 / 路径 / README 一致性 / awesome-lint / 各 regression 测试）全过；Submission gate 只报仓库年龄，等 24h 自动转绿 |
 
 本地跑市场预检（不要提交 README 改动，合并时由上游生成）：
 
