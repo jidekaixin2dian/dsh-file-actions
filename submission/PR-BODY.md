@@ -21,13 +21,13 @@ A single client half. Opening and revealing go through the shipped Session Remot
 
 ## Checks run before submitting
 
-- 28 unit tests (`node --test`) over path parsing, file classification, menu generation, the Remote result envelope, the copy-window cap and the workspace containment check.
-- 27 assertions against a real DSH instance (0.2.1-rc.2) driven through headless Chromium/CDP on a scratch profile: activation, readiness, four detection carriers, type classification, the asynchronous association rows, the copy-path toast, and an unknown path opening no menu.
+- 30 unit tests (`node --test`) over path parsing, file classification, menu generation, the Remote result envelope, the copy-window cap and the workspace containment check.
+- 30 assertions against a real DSH instance (0.2.1-rc.2) driven through headless Chromium/CDP on a scratch profile: activation, readiness, four detection carriers, type classification, the asynchronous association rows, the copy-path toast, and an unknown path opening no menu.
 - A genuine mouse right-click run (`test-e2e/verify.mjs`): menu opens with 7 rows, 复制路径 puts the absolute path on the clipboard.
 - The keyboard path (Shift+F10, arrow keys, Enter, Escape) and the open-with submenu are covered by the same driver.
 - `dsh --profile <scratch> --dump-config` composes the row; the boot graph serves `@jidekaixin2dian/dsh-file-actions/client.js`.
 
-The release is v0.1.1 — a review pass over the first build fixed a copy-contents regression, the menu closing on focus/scroll, and extension-less files being treated as binary.
+The release is v0.1.2 — a review pass fixed a copy-contents regression, the menu closing on focus/scroll and extension-less files being treated as binary, and a UI pass gave the menu a file-identity header, tighter rows and keyboard hints.
 
 The repo declares `dsh.bundle.patch`, carries the `dsh-plugin` topic, and the release asset `dsh-file-actions.tgz` is version-free so `releases/latest/download/` keeps resolving.
 
