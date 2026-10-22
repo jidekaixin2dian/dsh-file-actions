@@ -1,5 +1,7 @@
+import os from 'node:os'
+import { findChrome, requireFreePort } from './lib/cdp.mjs'
 // Capture screenshots of the menu for visual review and the README.
-// usage: node shoot.mjs <token> [port]
+// Run after launch.ps1; reads run/instance.json.
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -8,11 +10,12 @@ import { fileURLToPath } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const projectDir = path.resolve(here, '..')
 const project = projectDir.replace(/\\/g, '/')
-const TOKEN = process.argv[2] || fs.readFileSync(path.join(here, 'token.txt'), 'utf8').trim()
-const PORT = Number(process.argv[3] || 5499)
+const instance = JSON.parse(fs.readFileSync(path.join(here, 'run', 'instance.json'), 'utf8'))
+const TOKEN = new URL(instance.url).searchParams.get('token')
+const PORT = instance.port
 const CDP_PORT = Number(process.env.DFA_CDP_PORT || 9224)
-const CHROME = process.env.DFA_CHROME || path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1243', 'chrome-win64', 'chrome.exe')
-const USER_DIR = path.join(here, '.chrome-shoot')
+const CHROME = findChrome()
+const USER_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'dfa-browser-'))
 const OUT = path.join(here, 'run')
 const PAGE = `http://127.0.0.1:${PORT}/?token=${TOKEN}`
 
@@ -20,8 +23,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 fs.mkdirSync(OUT, { recursive: true })
 // A reused profile would serve the previous run's cached bundle under the same
 // rev URL, so every shot starts from a clean browser profile.
-try { fs.rmSync(USER_DIR, { recursive: true, force: true }) } catch { /* a leftover browser still holds it */ }
 
+await requireFreePort(CDP_PORT)
 const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${USER_DIR}`,
   '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860', PAGE],
   { detached: true, stdio: 'ignore' })
@@ -209,5 +212,5 @@ await fire('[data-test="attr"]', 10)
 await sleep(1500)
 await shoot('menu-svg-light.png')
 
-try { process.kill(-chrome.pid) } catch { try { process.kill(chrome.pid) } catch { /* gone */ } }
+try { chrome.kill() } catch { /* already exited */ }
 setTimeout(() => process.exit(0), 400)

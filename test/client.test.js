@@ -405,6 +405,32 @@ test('pathFromHref understands dsh-resource file addresses', () => {
   assert.equal(api.pathFromHref('https://example.com/a.ts'), '')
 })
 
+test('resource paths retain POSIX roots and encoded separators', () => {
+  assert.equal(api.pathFromHref('dsh-resource://file/session/s1//home/me/a.txt'), '/home/me/a.txt')
+  assert.equal(api.pathFromHref('dsh-resource://file/absolute/%2Fhome%2Fme%2Fa.txt'), '/home/me/a.txt')
+  assert.equal(api.pathFromHref('dsh-resource://file/absolute//home/me/a.txt'), '/home/me/a.txt')
+  assert.equal(api.pathFromHref('dsh-resource://file/shared/team/a.txt'), '')
+})
+
+test('POSIX path identity is case sensitive while Windows remains case insensitive', () => {
+  assert.equal(api.isInside('/home/me/repo', '/home/me/Repo/a.txt'), false)
+  assert.equal(api.relativeTo('/home/me/repo', '/home/me/Repo/a.txt'), '')
+  assert.equal(api.isInside('C:/repo', 'c:/Repo/a.txt'), true)
+  assert.equal(api.relativeTo('C:/repo', 'c:/Repo/a.txt'), 'a.txt')
+  assert.equal(api.isInside('/', '/tmp/a.txt'), true)
+})
+
+test('a resource Session is resolved exactly, never replaced by the active chat', () => {
+  const bridge = api.createBridge({ remote: {}, sessions: { list: { getSnapshot: () => ({ byId: {
+    a: { id: 'a', cwd: '/one', retainedBy: { mainView: 1 } },
+    b: { id: 'b', cwd: '/two' },
+  } }) } } })
+  assert.equal(bridge.activeSession().id, 'a')
+  assert.equal(bridge.activeSession('b').cwd, '/two')
+  assert.equal(bridge.activeSession('gone').id, 'gone')
+  assert.equal(bridge.activeSession('gone').cwd, undefined)
+})
+
 test('subtitles, video and audio are classified for the menu', () => {
   for (const name of ['a.srt', 'a.ass', 'a.ssa', 'a.vtt', 'a.lrc']) {
     const kind = api.classify(name, false)

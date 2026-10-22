@@ -1,5 +1,9 @@
 # dsh-file-actions
 
+[English](README.en.md)
+
+`main` 包含 **0.1.6 待发布**修复。已发布的 0.1.5 及更早版本尚未隔离 HTML/SVG 预览与 DSH 页面；新包发布前请使用下方 GitHub 源码安装方式。见[安全说明](SECURITY.md)和[变更记录](CHANGELOG.md)。
+
 在 DSH 聊天里右键文件名，直接打开、用别的应用打开、在资源管理器里定位、复制路径或内容、另存为。
 
 对齐 Codex 桌面端的文件引用菜单。Codex 的界面没有开源，这里是按它的行为重做的，不是移植代码。
@@ -11,10 +15,10 @@
 先完全退出 DSH 桌面端，再执行：
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
+dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions
 ```
 
-装完重开 DSH 生效。没发到 npm，只提供上面这个 release 包。
+装完重开 DSH 生效。未发布 npm。上述命令安装当前 GitHub 源码；历史安装包保留在 Release 页面。
 
 卸载：dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions，然后重开 DSH。
 
@@ -57,7 +61,8 @@ dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-act
 - 不是系统原生菜单，不跟随系统的字体缩放。
 - 「打开方式」只列系统已注册的关联应用。
 - 另存为走浏览器的下载对话框，文件名固定为原文件名。
-- 复制文件内容上限 2 MB，更大的文件请用另存为。
+- 复制文件内容上限 2 MiB。另存为和浏览器预览受宿主整文件读取上限约束，DSH 0.2.1-rc.2 默认 32 MiB；更大的文件请使用外部应用。
+- HTML/SVG 预览在独立来源的 sandbox iframe 内运行脚本，不能读取 DSH 页面或 Cookie；相邻文件的相对资源、顶层跳转和同源存储可能不可用。
 - 只支持网页版界面，终端里的 DSH 没有可右键的元素。
 
 ## 常见问题
@@ -69,6 +74,22 @@ dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-act
 **「在浏览器中打开」没反应？** 浏览器可能拦了新窗口，允许弹窗后重试。
 
 **「在编辑器中打开」打开的不是我想用的编辑器？** 它取的是系统关联里第一个能认出来的编辑器，其余都在「打开方式」里。
+
+## 开发与验证
+
+需要 Node >=24、Git、pnpm：
+
+```sh
+npm ci --ignore-scripts
+npm test
+npm run setup:host
+npm run test:host
+npm run pack:check
+```
+
+固定宿主为 DSH **0.2.1-rc.2**（`687f282e8625c6b8d11ff58211a90524be2e4317`）。`DFA_HOST` 可复用相同 commit 的干净 checkout。Windows 使用 headless Edge；Linux 先运行 `npx --no-install playwright install --with-deps chromium`。CI 同时覆盖两种系统。插件仍无运行时依赖、无构建步骤。
+
+浏览器套件把实际 client bundle 与真实 WorkspaceFiles 接到合成文件引用上，检查会话身份、预览脚本隔离、真实 3 MiB 下载及卸载行为；这不是完整 Desktop 或外部应用启动验收。可选完整 Web 驱动和历史断言计数见 [test-e2e](test-e2e/README.md)。
 
 ## 版本
 

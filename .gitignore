@@ -14,3 +14,5 @@ submission/
 test-e2e/REPORT*.md
 test-e2e/ground-truth.json
 release-notes.md
+
+work/

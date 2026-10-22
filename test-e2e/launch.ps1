@@ -1,240 +1,81 @@
-<#
-.SYNOPSIS
-  Launch an isolated DeepSeek Harness (DSH) web instance for e2e verification.
-
-.DESCRIPTION
-  Creates (once) the scratch profile `dfa-e2e` modelled on the shipped `web`
-  profile, picks a free TCP port, boots `dsh --profile dfa-e2e web --port <p>
-  --no-open`, and waits until the HTTP UI answers 200.
-
-  It NEVER touches the user's running desktop instance (port 5401) or the
-  `desktop` profile. Everything it owns lives in:
-    - C:\Users\Aether\.dsh\profiles\dfa-e2e          (scratch profile)
-    - <this folder>\run\                             (logs, pid/port state)
-
-.PARAMETER Port
-  Preferred port (default 5497). If busy, the next free port is used.
-
-.PARAMETER Recreate
-  Rebuild the scratch profile from the shipped `web` template.
-
-.PARAMETER Stop
-  Stop the scratch instance recorded in run\instance.json and exit.
-
-.EXAMPLE
-  pwsh -File .\launch.ps1
-  pwsh -File .\launch.ps1 -Port 5510
-  pwsh -File .\launch.ps1 -Stop
-#>
+# Optional full-Web smoke harness. npm run test:host is the automated suite.
 [CmdletBinding()]
 param(
-  [int]$Port = 5497,
-  [switch]$Recreate,
+  [ValidateRange(1024,65535)][int]$Port = 5497,
+  [string]$DshHome = $env:DFA_HOME,
+  [string]$DshCli = $env:DFA_DSH_CLI,
   [switch]$Stop,
-  [int]$TimeoutSeconds = 120
+  [switch]$CheckOnly,
+  [ValidateRange(1,180)][int]$TimeoutSeconds = 60
 )
-
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-
-# ---------------------------------------------------------------- constants
-$DshHome    = Join-Path $env:USERPROFILE '.dsh'
-$Profiles   = Join-Path $DshHome 'profiles'
-$ProfileName = 'dfa-e2e'
-$ProfileDir = Join-Path $Profiles $ProfileName
-$TemplateDir = Join-Path $Profiles 'web'
-$DshCli     = 'C:\Users\Aether\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-$Here       = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RunDir     = Join-Path $Here 'run'
-$StateFile  = Join-Path $RunDir 'instance.json'
-$LogFile    = Join-Path $RunDir 'instance.log'
-
-function Write-Step($msg) { Write-Host "[launch] $msg" -ForegroundColor Cyan }
-function Write-Warn2($msg) { Write-Host "[launch] $msg" -ForegroundColor Yellow }
-
-New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
-
-# ---------------------------------------------------------------- stop mode
-function Get-State {
-  if (Test-Path -LiteralPath $StateFile) {
-    try { return Get-Content -LiteralPath $StateFile -Raw | ConvertFrom-Json } catch { return $null }
+$runDir = Join-Path $PSScriptRoot 'run'
+$stateFile = Join-Path $runDir 'instance.json'
+$childScript = Join-Path $PSScriptRoot 'launch-child.ps1'
+if (-not $DshHome) { $DshHome = Join-Path (Split-Path $PSScriptRoot -Parent) 'work/desktop-e2e-home' }
+$DshHome = [IO.Path]::GetFullPath($DshHome)
+$realHome = [IO.Path]::GetFullPath((Join-Path $env:USERPROFILE '.dsh'))
+if ($DshHome.TrimEnd('\','/') -eq $realHome.TrimEnd('\','/')) { throw 'Use a separate DFA_HOME, never the production DSH home.' }
+$state = if (Test-Path -LiteralPath $stateFile) { Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json } else { $null }
+function Stop-OwnedInstance {
+  if ($null -eq $state) { return }
+  $process = Get-Process -Id $state.launcherPid -ErrorAction SilentlyContinue
+  if ($null -eq $process) { return }
+  $details = Get-CimInstance Win32_Process -Filter "ProcessId = $($state.launcherPid)"
+  if ($process.StartTime.ToUniversalTime().Ticks.ToString() -ne $state.startTicks -or
+      -not $details.CommandLine.Contains($childScript)) {
+    throw 'Recorded process identity changed; refusing to stop it.'
   }
-  return $null
+  & taskkill.exe /PID $state.launcherPid /T /F | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw 'Could not stop the owned process tree.' }
 }
-
-function Test-UrlOk([string]$url) {
-  try {
-    $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
-    return ($r.StatusCode -eq 200)
-  } catch { return $false }
+if ($Stop) {
+  Stop-OwnedInstance
+  if (Test-Path -LiteralPath $stateFile) { Remove-Item -LiteralPath $stateFile }
+  return
 }
-
-function Stop-Instance {
-  $state = Get-State
-  if ($null -eq $state) { Write-Step 'no instance recorded'; return }
-  # Kill whatever actually listens on our recorded port, plus the launcher pid.
-  foreach ($procId in @($state.portPid, $state.launcherPid)) {
-    if ($null -eq $procId -or $procId -le 0) { continue }
-    $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
-    if ($null -ne $p) {
-      Write-Step "stopping pid $procId ($($p.ProcessName))"
-      try { Stop-Process -Id $procId -Force -ErrorAction Stop } catch { Write-Warn2 "pid $procId already gone" }
-    }
-  }
-  # Belt and braces: anything still listening on our port.
-  $listener = Get-NetTCPConnection -LocalPort ([int]$state.port) -State Listen -ErrorAction SilentlyContinue
-  foreach ($l in $listener) {
-    try { Stop-Process -Id $l.OwningProcess -Force -ErrorAction Stop; Write-Step "stopped port owner $($l.OwningProcess)" } catch { }
-  }
-  Remove-Item -LiteralPath $StateFile -Force -ErrorAction SilentlyContinue
-  Write-Step 'stopped'
+if (-not $DshCli) { $command = Get-Command dsh -ErrorAction SilentlyContinue; if ($command) { $DshCli = $command.Source } }
+if (-not $DshCli -or -not (Test-Path -LiteralPath $DshCli -PathType Leaf)) { throw 'Set DFA_DSH_CLI to the official DSH CLI.' }
+$profileDir = Join-Path $DshHome 'profiles/dfa-e2e'
+if (-not (Test-Path -LiteralPath (Join-Path $profileDir 'package.json'))) {
+  throw "Provision an isolated web profile at $profileDir first. This script never copies personal profiles."
 }
-
-if ($Stop) { Stop-Instance; return }
-
-# ---------------------------------------------------------------- guard rail
-if ($Port -eq 5401) { throw 'refusing to manage port 5401 (the user''s desktop instance)' }
-
-# ---------------------------------------------------------------- profile
-function Initialize-Profile {
-  if ((Test-Path -LiteralPath $ProfileDir) -and -not $Recreate) {
-    Write-Step "profile exists: $ProfileDir"
-    return
-  }
-  if (Test-Path -LiteralPath $ProfileDir) {
-    Write-Step "recreating profile (keeping node_modules): $ProfileDir"
-    foreach ($f in 'cordis.yml', 'cordis.patch.yml', 'package.json', 'pnpm-workspace.yaml') {
-      $src = Join-Path $TemplateDir $f
-      if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination (Join-Path $ProfileDir $f) -Force }
-    }
-    # keep package.json name distinct so pnpm state is unambiguous
-    $pkgPath = Join-Path $ProfileDir 'package.json'
-    $pkg = Get-Content -LiteralPath $pkgPath -Raw | ConvertFrom-Json
-    $pkg.name = "dsh-profile-$ProfileName"
-    $pkg | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $pkgPath -Encoding utf8
-    return
-  }
-  Write-Step "creating profile from '$TemplateDir' -> $ProfileDir"
-  New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
-  foreach ($f in 'cordis.yml', 'cordis.patch.yml', 'package.json', 'pnpm-workspace.yaml') {
-    $src = Join-Path $TemplateDir $f
-    if (-not (Test-Path -LiteralPath $src)) { throw "template file missing: $src" }
-    Copy-Item -LiteralPath $src -Destination (Join-Path $ProfileDir $f) -Force
-  }
-  $pkgPath = Join-Path $ProfileDir 'package.json'
-  $pkg = Get-Content -LiteralPath $pkgPath -Raw | ConvertFrom-Json
-  $pkg.name = "dsh-profile-$ProfileName"
-  $pkg | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $pkgPath -Encoding utf8
-}
-
-function Get-FreePort([int]$preferred) {
-  for ($p = $preferred; $p -lt ($preferred + 200); $p++) {
-    if ($p -eq 5401) { continue }
-    $busy = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue
-    if (-not $busy) { return $p }
-  }
-  throw "no free port found starting at $preferred"
-}
-
-Initialize-Profile
-
-if (-not (Test-Path -LiteralPath $DshCli)) { throw "dsh CLI not found: $DshCli" }
-
-# ---------------------------------------------------------------- reuse
-$state = Get-State
-if ($null -ne $state) {
-  $probeUrl = if ($state.PSObject.Properties['url'] -and $state.url) { $state.url } else { "http://127.0.0.1:$($state.port)/" }
-  if (Test-UrlOk $probeUrl) {
-    Write-Step "instance already up on port $($state.port) (pid $($state.portPid))"
-    Write-Output "PORT=$($state.port)"
-    Write-Output "URL=$($state.url)"
-    return
-  }
-  Write-Step 'recorded instance is not answering; restarting it'
-  Stop-Instance
-}
-
-# ---------------------------------------------------------------- start
-$usePort = Get-FreePort $Port
-Write-Step "starting dsh --profile $ProfileName --port $usePort --no-open"
-
-Remove-Item -LiteralPath $LogFile -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath "$LogFile.err" -Force -ErrorAction SilentlyContinue
-
-# A plain Start-Process child inherits this shell's stdio handles, which keeps
-# the caller's pipe open forever (the harness would hang). Win32_Process.Create
-# starts the server fully detached, and the .cmd shim owns its own redirection.
-$shim = Join-Path $RunDir 'start.cmd'
-$shimBody = @(
-  '@echo off',
-  ('"{0}" --profile {1} --port {2} --no-open > "{3}" 2> "{4}"' -f $DshCli, $ProfileName, $usePort, $LogFile, "$LogFile.err")
-) -join "`r`n"
-Set-Content -LiteralPath $shim -Value $shimBody -Encoding ascii
-
-$launcherPid = 0
-try {
-  $created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
-    CommandLine      = ('cmd.exe /c "{0}"' -f $shim)
-    CurrentDirectory = $Here
-  } -ErrorAction Stop
-  if ($created.ReturnValue -eq 0) { $launcherPid = [int]$created.ProcessId }
-  else { Write-Warn2 "Win32_Process.Create returned $($created.ReturnValue)" }
-} catch {
-  Write-Warn2 "detached launch failed ($($_.Exception.Message)); falling back to Start-Process"
-}
-
-if ($launcherPid -eq 0) {
-  $proc = Start-Process -FilePath $DshCli -ArgumentList @('--profile', $ProfileName, '--port', "$usePort", '--no-open') `
-    -WorkingDirectory $Here -RedirectStandardOutput $LogFile -RedirectStandardError "$LogFile.err" `
-    -WindowStyle Hidden -PassThru
-  $launcherPid = $proc.Id
-}
-Write-Step "launcher pid $launcherPid, log $LogFile"
-
-# The web app prints `dsh web: http://127.0.0.1:<port>/?token=<token>` once it
-# is listening. `/` without the token is refused, so scrape the token line.
+if ($CheckOnly) { Write-Output "CheckOnly: $DshCli; isolated home $DshHome; profile dfa-e2e; port $Port"; return }
+if ($state) { throw 'An instance record exists. Use -Stop to verify and stop its owner first.' }
+if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) { throw "Port $Port is occupied; choose another port." }
+New-Item -ItemType Directory -Path $runDir -Force | Out-Null
+$log = Join-Path $runDir 'instance.log'
+$err = Join-Path $runDir 'instance.err.log'
+foreach ($file in @($log,$err)) { if (Test-Path -LiteralPath $file) { Move-Item -LiteralPath $file -Destination ($file + '.' + [guid]::NewGuid().ToString('N') + '.previous') } }
+# Start-Process joins ArgumentList; quote path arguments without evaluating shell text.
+foreach ($value in @($childScript,$DshHome,$DshCli)) { if ($value.Contains('"')) { throw 'Invalid quote in path.' } }
+$process = Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList @('-NoProfile','-File',('"' + $childScript + '"'),'-DshHome',('"' + $DshHome + '"'),'-DshCli',('"' + $DshCli + '"'),'-Port',"$Port") -WindowStyle Hidden -PassThru -RedirectStandardOutput $log -RedirectStandardError $err
+$state = [ordered]@{ profile='dfa-e2e'; home=$DshHome; port=$Port; launcherPid=$process.Id; startTicks=$process.StartTime.ToUniversalTime().Ticks.ToString(); url=$null }
+$state | ConvertTo-Json | Set-Content -LiteralPath $stateFile -Encoding utf8
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-$url = $null
-while ((Get-Date) -lt $deadline) {
-  if (Test-Path -LiteralPath $LogFile) {
-    $m = Select-String -LiteralPath $LogFile -Pattern 'dsh web:\s*(\S+)' -ErrorAction SilentlyContinue |
-         Select-Object -First 1
-    if ($null -ne $m) { $url = $m.Matches[0].Groups[1].Value.Trim(); break }
-  }
-  $listening = Get-NetTCPConnection -LocalPort $usePort -State Listen -ErrorAction SilentlyContinue
-  if (-not $listening -and $null -ne (Get-Process -Id $launcherPid -ErrorAction SilentlyContinue) -eq $false) { break }
-  Start-Sleep -Milliseconds 250
-}
-
-$ok = $false
-if ($null -ne $url) {
+try {
   while ((Get-Date) -lt $deadline) {
-    if (Test-UrlOk $url) { $ok = $true; break }
+    $process.Refresh()
+    if ($process.HasExited) { throw 'DSH exited before readiness; inspect run/instance*.log.' }
+    $match = Select-String -LiteralPath $log -Pattern 'http://127\.0\.0\.1:[0-9]+/\?token=[A-Za-z0-9_-]+' | Select-Object -First 1
+    if ($match) {
+      $url = $match.Matches[0].Value
+      try {
+        $response = Invoke-WebRequest -Uri $url -NoProxy -TimeoutSec 2
+        if ($response.StatusCode -eq 200) {
+          $state.url = $url
+          $state | ConvertTo-Json | Set-Content -LiteralPath $stateFile -Encoding utf8
+          Write-Output "Ready on port $Port. Private launch URL is in run/instance.json."
+          return
+        }
+      } catch { }
+    }
     Start-Sleep -Milliseconds 250
   }
+  throw 'DSH readiness timed out; inspect run/instance*.log.'
+} catch {
+  Stop-OwnedInstance
+  if (Test-Path -LiteralPath $stateFile) { Remove-Item -LiteralPath $stateFile }
+  throw
 }
-
-if (-not $ok) {
-  Write-Warn2 "instance did not answer 200 within ${TimeoutSeconds}s; tail of log:"
-  if (Test-Path -LiteralPath $LogFile) { Get-Content -LiteralPath $LogFile -Tail 40 | ForEach-Object { Write-Host "  $_" } }
-  if (Test-Path -LiteralPath "$LogFile.err") { Get-Content -LiteralPath "$LogFile.err" -Tail 40 | ForEach-Object { Write-Host "  ! $_" } }
-  throw "launch failed on port $usePort"
-}
-
-$listener = Get-NetTCPConnection -LocalPort $usePort -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
-$portPid = if ($null -ne $listener) { [int]$listener.OwningProcess } else { $launcherPid }
-
-$record = [ordered]@{
-  profile     = $ProfileName
-  port        = $usePort
-  url         = $url
-  launcherPid = $launcherPid
-  portPid     = $portPid
-  startedAt   = (Get-Date).ToString('o')
-  log         = $LogFile
-}
-$record | ConvertTo-Json | Set-Content -LiteralPath $StateFile -Encoding utf8
-
-Write-Step "UP  $url   (profile=$ProfileName port=$usePort pid=$portPid)"
-Write-Output "PORT=$usePort"
-Write-Output "URL=$url"

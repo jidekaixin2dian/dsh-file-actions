@@ -16,21 +16,21 @@
 // Prints PASS / FAIL / SKIP per check and exits non-zero when anything FAILs.
 // SKIP means "the plugin is not installable/complete yet" — exit code 0.
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { launchChrome, connectPage, sleep } from './lib/cdp.mjs';
 import { waitForShell } from './lib/inspect.mjs';
 
-const here = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+const here = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
 
 const PLUGIN_DIR = path.resolve(here, '..');
 const PROFILE_NAME = 'dfa-e2e';
-const DSH_HOME = path.join(process.env.USERPROFILE, '.dsh');
+const DSH_HOME = path.resolve(process.env.DFA_HOME || path.join(PLUGIN_DIR, 'work', 'desktop-e2e-home'));
 const PROFILE_DIR = path.join(DSH_HOME, 'profiles', PROFILE_NAME);
-const NODE = path.join(DSH_HOME, 'dsh-runtimes', 'dsh-primary-runtime', 'dependencies', 'node', 'bin', 'node.exe');
-const PNPM = path.join(DSH_HOME, 'dsh-runtimes', 'dsh-primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.cjs');
+const NODE = process.execPath;
 const LAUNCH_PS1 = path.join(here, 'launch.ps1');
 const STATE_FILE = path.join(here, 'run', 'instance.json');
 const LOG_FILE = path.join(here, 'run', 'instance.log');
@@ -53,7 +53,7 @@ function finish() {
     for (const f of failed) console.log(`  - ${f.name}${f.detail ? `: ${f.detail}` : ''}`);
     process.exit(1);
   }
-  process.exit(0);
+  process.exit(skipped.some(c => !c.detail.includes('--no-install')) ? 1 : 0);
 }
 
 const readState = () => (fs.existsSync(STATE_FILE) ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) : null);
@@ -111,19 +111,9 @@ function installPlugin(pkg) {
     check('scratch profile exists', 'SKIP', `${PROFILE_DIR} missing — run launch.ps1 first`);
     finish();
   }
-  const spec = `file:${PLUGIN_DIR.replace(/\\/g, '/')}`;
-  const r = spawnSync(NODE, [PNPM, 'add', spec], {
-    cwd: PROFILE_DIR,
-    encoding: 'utf8',
-    timeout: 300000,
-    windowsHide: true,
-  });
-  if (r.status !== 0) {
-    check('pnpm add into profile', 'FAIL', `${(r.stderr || r.stdout || '').split('\n').slice(-3).join(' | ')}`);
-    return false;
-  }
-  check('pnpm add into profile', 'PASS', spec);
-
+  const r = spawnSync('pwsh', ['-NoProfile','-File',path.join(PLUGIN_DIR,'scripts/reinstall.ps1'),'-Profile',PROFILE_NAME,'-DshHome',DSH_HOME], { encoding:'utf8', timeout:300000, windowsHide:true });
+  if (r.status !== 0) { check('official CLI install','FAIL',r.stderr || 'install failed'); return false }
+  check('official CLI install','PASS');
   const installed = path.join(PROFILE_DIR, 'node_modules', ...pkg.name.split('/'), 'package.json');
   if (!fs.existsSync(installed)) {
     check('installed package present', 'FAIL', installed);
@@ -131,21 +121,9 @@ function installPlugin(pkg) {
   }
   check('installed package present', 'PASS', installed);
 
-  // A bare `pnpm add` only records the dependency; the profile must also list
-  // the bundle, otherwise the client bundle is never composed into the app.
-  const profilePkgPath = path.join(PROFILE_DIR, 'package.json');
-  const profilePkg = JSON.parse(fs.readFileSync(profilePkgPath, 'utf8'));
-  const bundles = profilePkg?.dsh?.profile?.bundles ?? [];
-  if (bundles.includes(pkg.name)) {
-    check('profile bundles include plugin', 'PASS', bundles.join(', '));
-  } else {
-    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
-    fs.copyFileSync(profilePkgPath, `${profilePkgPath}.bak-${stamp}-verify`);
-    profilePkg.dsh = profilePkg.dsh ?? {};
-    profilePkg.dsh.profile = profilePkg.dsh.profile ?? {};
-    profilePkg.dsh.profile.bundles = [...bundles, pkg.name];
-    fs.writeFileSync(profilePkgPath, JSON.stringify(profilePkg, null, 2), 'utf8');
-    check('profile bundles include plugin', 'PASS', `added ${pkg.name}`);
+  const profilePkg = JSON.parse(fs.readFileSync(path.join(PROFILE_DIR, 'package.json'), 'utf8'));
+  if (!(profilePkg.dsh?.profile?.bundles || []).includes(pkg.name)) {
+    check('profile bundles include plugin','FAIL','official CLI did not register bundle'); return false;
   }
   return true;
 }

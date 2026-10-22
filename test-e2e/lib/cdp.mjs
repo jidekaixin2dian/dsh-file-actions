@@ -1,3 +1,4 @@
+import { createServer } from 'node:net';
 // Tiny Chrome DevTools Protocol driver: launch a Chromium from the Playwright
 // browser cache, connect to its page target over the hand-rolled WebSocket
 // client, and expose the handful of primitives the harness needs.
@@ -29,6 +30,15 @@ export function findChrome() {
   throw new Error(`no Chromium found under ${PLAYWRIGHT_ROOT} — set DFA_CHROME`);
 }
 
+export async function requireFreePort(port) {
+  const server = createServer();
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '127.0.0.1', resolve);
+  });
+  await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+}
+
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function httpJson(url, timeoutMs = 5000) {
@@ -58,6 +68,7 @@ export async function waitForDevtools(port, timeoutMs = 30000) {
 export async function launchChrome(opts = {}) {
   const exe = findChrome();
   const port = opts.port ?? 9333;
+  await requireFreePort(port);
   const userDataDir = opts.userDataDir ?? path.join(os.tmpdir(), `dsh-e2e-chrome-${Date.now()}`);
   const args = [
     `--remote-debugging-port=${port}`,

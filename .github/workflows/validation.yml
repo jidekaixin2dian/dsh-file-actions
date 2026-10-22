@@ -1,0 +1,47 @@
+name: Validation
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.18.1'
+          cache: npm
+      - run: npm ci --ignore-scripts --legacy-peer-deps
+      - run: npm test
+      - run: npm run pack:check
+  host:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.18.1'
+          cache: npm
+      - run: npm ci --ignore-scripts --legacy-peer-deps
+      - run: npm install --global pnpm@11.28.5 --ignore-scripts
+      - run: npm run setup:host
+      - if: runner.os == 'Linux'
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Host filesystem and browser regression
+        run: npm run test:host
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: host-${{ matrix.os }}
+          path: work/results/

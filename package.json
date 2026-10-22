@@ -1,6 +1,6 @@
 {
   "name": "@jidekaixin2dian/dsh-file-actions",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Codex-style right-click file menu for DeepSeek Harness: open, open with, reveal, copy path, copy contents and save as on every file reference in the chat.",
   "icon": "icon.svg",
   "type": "module",
@@ -17,10 +17,14 @@
     "README.en.md",
     "LICENSE",
     "icon.svg",
-    "assets"
+    "assets",
+    "SECURITY.md"
   ],
   "scripts": {
-    "test": "node --test"
+    "test": "node --test \"test/*.test.js\"",
+    "setup:host": "node scripts/setup-host.mjs",
+    "test:host": "node scripts/test-host.mjs",
+    "pack:check": "node scripts/pack-check.mjs"
   },
   "repository": {
     "type": "git",
@@ -53,5 +57,11 @@
       ]
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
 }

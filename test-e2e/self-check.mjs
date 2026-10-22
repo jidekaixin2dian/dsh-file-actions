@@ -1,3 +1,5 @@
+import os from 'node:os'
+import { findChrome, requireFreePort } from './lib/cdp.mjs'
 // Real-app self-check: drive headless Chromium over CDP against a scratch DSH
 // instance, right-click a few file references, and assert the menu behaves.
 //
@@ -6,10 +8,8 @@
 // bare text token), so this proves activation, detection, classification, the
 // Remote calls and the click pipeline without depending on a live agent turn.
 //
-// usage:
-//   pwsh -File .\start-instance.ps1      # boots the scratch instance + token.txt
-//   node self-check.mjs                  # reads token.txt next to this file
-//   node self-check.mjs <token> [port]
+// Run launch.ps1 first, then node test-e2e/self-check.mjs.
+// The private URL and port come from run/instance.json.
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -19,13 +19,12 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const projectDir = path.resolve(here, '..')
 const project = projectDir.replace(/\\/g, '/')
 
-const tokenFile = path.join(here, 'token.txt')
-const TOKEN = process.argv[2] || (fs.existsSync(tokenFile) ? fs.readFileSync(tokenFile, 'utf8').trim() : '')
-const PORT = Number(process.argv[3] || 5499)
+const instance = JSON.parse(fs.readFileSync(path.join(here, 'run', 'instance.json'), 'utf8'))
+const TOKEN = new URL(instance.url).searchParams.get('token')
+const PORT = instance.port
 const CDP_PORT = Number(process.env.DFA_CDP_PORT || 9223)
-const CHROME = process.env.DFA_CHROME
-  || path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1243', 'chrome-win64', 'chrome.exe')
-const USER_DIR = path.join(here, '.chrome-profile')
+const CHROME = findChrome()
+const USER_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'dfa-browser-'))
 const PAGE = `http://127.0.0.1:${PORT}/?token=${TOKEN}`
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -91,7 +90,7 @@ async function main() {
   if (!TOKEN) throw new Error('missing token: pass it as argv[2] or write test-e2e/token.txt')
   if (!fs.existsSync(CHROME)) throw new Error('chromium missing: ' + CHROME)
 
-  fs.rmSync(USER_DIR, { recursive: true, force: true })
+  await requireFreePort(CDP_PORT)
   chromeProcess = spawn(CHROME, [
     '--headless=new',
     `--remote-debugging-port=${CDP_PORT}`,
@@ -439,13 +438,6 @@ main().catch((error) => {
   console.error('self-check failed:', error)
   process.exitCode = 1
 }).finally(async () => {
-  try {
-    const list = await fetchJson(`http://127.0.0.1:${CDP_PORT}/json/list`)
-    for (const entry of list) {
-      if (entry.type === 'page') await fetch(`http://127.0.0.1:${CDP_PORT}/json/close/${entry.id}`)
-    }
-  } catch { /* chrome already gone */ }
-  // Kill only the browser this script launched; never the user's own Chrome.
-  try { process.kill(-chromeProcess.pid) } catch { try { process.kill(chromeProcess.pid) } catch { /* already gone */ } }
+  try { chromeProcess?.kill() } catch { /* already exited */ }
   setTimeout(() => process.exit(process.exitCode || 0), 500)
 })

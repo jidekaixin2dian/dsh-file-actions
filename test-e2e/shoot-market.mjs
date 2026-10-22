@@ -1,8 +1,10 @@
+import os from 'node:os'
+import { findChrome, requireFreePort } from './lib/cdp.mjs'
 // Market previews: capture 3:2 crops of the menu at 2x for the plugin card.
 // The market card box is 132x88 (3:2, object-fit: contain) and the dialog strip is
 // 220x150 (cover), so a 3:2 crop centred on the menu is what actually reads well.
 //
-// usage: node shoot-market.mjs   (reads token.txt, serves port 5499)
+// Run after launch.ps1; reads run/instance.json.
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -11,17 +13,18 @@ import { fileURLToPath } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const projectDir = path.resolve(here, '..')
 const project = projectDir.replace(/\\/g, '/')
-const TOKEN = fs.readFileSync(path.join(here, 'token.txt'), 'utf8').trim()
-const PORT = Number(process.argv[2] || 5499)
+const instance = JSON.parse(fs.readFileSync(path.join(here, 'run', 'instance.json'), 'utf8'))
+const TOKEN = new URL(instance.url).searchParams.get('token')
+const PORT = instance.port
 const CDP_PORT = Number(process.env.DFA_CDP_PORT || 9225)
-const CHROME = process.env.DFA_CHROME || path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1243', 'chrome-win64', 'chrome.exe')
-const USER_DIR = path.join(here, '.chrome-market')
+const CHROME = findChrome()
+const USER_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'dfa-browser-'))
 const OUT = path.join(projectDir, 'assets')
 const PAGE = `http://127.0.0.1:${PORT}/?token=${TOKEN}`
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-try { fs.rmSync(USER_DIR, { recursive: true, force: true }) } catch { /* a leftover browser still holds it */ }
 
+await requireFreePort(CDP_PORT)
 const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${USER_DIR}`,
   '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1440,900', PAGE],
   { detached: true, stdio: 'ignore' })
@@ -199,5 +202,5 @@ await waitFor(`!!document.querySelector('[data-dfa-item="openWith"]')`)
 await sleep(400)
 await shootMenu('preview-light.png')
 
-try { process.kill(-chrome.pid) } catch { try { process.kill(chrome.pid) } catch { /* gone */ } }
+try { chrome.kill() } catch { /* already exited */ }
 setTimeout(() => process.exit(0), 400)
