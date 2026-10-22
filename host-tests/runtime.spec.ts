@@ -61,7 +61,7 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
       // This fixture serves only its known synthetic files, never arbitrary paths.
       // Windows runners may expose a short TEMP spelling (RUNNER~1) while the
       // Host returns its canonical long path. Compare filesystem identities.
-      if (!['active', 'other'].includes(args.id) || path.dirname(fs.realpathSync(args.path)) !== fs.realpathSync(host.workspace)
+      if (!['active', 'other'].includes(args.id) || path.dirname(fs.realpathSync.native(args.path)) !== fs.realpathSync.native(host.workspace)
         || !['preview.html','note.txt','large.txt','image.svg'].includes(path.basename(args.path))) throw new Error('fixture path rejected')
       calls.push(args)
       if (pending && args.op === 'stat') { pending = false; await new Promise<void>(resolve => { release = resolve }) }
@@ -116,14 +116,6 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     const download = await downloadPromise
     expect(fs.statSync((await download.path())!).size).toBe(3 * 1024 * 1024)
 
-    // Popup/download UI can deliver a late window blur on Windows. Start the
-    // independent menu-lifetime checks in a fresh foreground page so those OS
-    // focus events cannot be mistaken for a thumbnail/lifecycle failure.
-    await page.close()
-    page = await browser.newPage({ viewport: { width: 1100, height: 800 } })
-    page.on('pageerror', error => errors.push(error.message))
-    await page.goto(`http://127.0.0.1:${address.port}/`)
-    await page.bringToFront()
     await page.locator('#note').evaluate((el: HTMLElement) => { el.dataset.fileActionsPath = 'image.svg' })
     await page.locator('#note').click({ button: 'right' })
     await expect.poll(() => page.locator('[data-dfa-menu] img').count(), {
