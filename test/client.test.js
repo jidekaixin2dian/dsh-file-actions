@@ -19,6 +19,9 @@ function loadBundle() {
   const sandbox = {
     window: { __ModuleLoader__: { load: (definition) => { captured = definition } } },
     console,
+    URL,
+    TextEncoder,
+    TextDecoder,
     setTimeout,
     clearTimeout,
     requestAnimationFrame: (fn) => setTimeout(fn, 0),
@@ -38,6 +41,17 @@ test('the bundle registers a client plugin', () => {
   assert.equal(mod.name, 'dsh-file-actions')
   assert.equal(typeof mod.apply, 'function')
   assert.equal(mod.inject.join(','), 'sessions,remote,remote.session,remote.workspaceFiles')
+})
+
+test('classic concatenation and repeated script loads preserve other plugins global bindings', () => {
+  const registrations = []
+  const context = vm.createContext({ window: { __ModuleLoader__: { load: row => registrations.push(row) } } })
+  vm.runInContext('const factory = "unrelated plugin";', context)
+  vm.runInContext(source + '\n' + source, context)
+  vm.runInContext(source, context)
+  assert.equal(registrations.length, 3)
+  assert.equal(registrations.every(row => row.id === '@jidekaixin2dian/dsh-file-actions'), true)
+  assert.equal(vm.runInContext('factory', context), 'unrelated plugin')
 })
 
 test('stripLocationSuffix splits :line:col and #L.. suffixes', () => {
@@ -480,4 +494,28 @@ test('icon and bullet decorations are stripped from a file name', () => {
   assert.equal(api.stripDecorations('D:\\a\\b.md'), 'D:\\a\\b.md')
   assert.equal(api.stripDecorations('.env.local'), '.env.local')
   assert.equal(api.stripDecorations('/abs/x.ts'), '/abs/x.ts')
+})
+
+test('web links get a link menu instead of file actions', () => {
+  const model = api.buildLinkMenuModel({ url: 'https://github.com/jidekaixin2dian/dsh-file-actions/releases/tag/v0.1.5', t: zh })
+  assert.equal(model.kind, 'link')
+  assert.equal(model.title, 'github.com')
+  assert.match(model.pathLine, /dsh-file-actions/)
+  const ids = model.sections.flat().map((item) => item.id)
+  assert.equal(ids.join(','), 'openLink,copyLink,copyLinkText')
+  assert.equal(model.meta, zh.kinds.link)
+
+  const withWww = api.buildLinkMenuModel({ url: 'https://www.example.com/a/b?c=1', t: en })
+  assert.equal(withWww.title, 'example.com')
+  assert.equal(withWww.pathLine, '/a/b?c=1')
+})
+
+test('linkFromHref only accepts http(s)', () => {
+  assert.equal(api.linkFromHref('https://github.com/x'), 'https://github.com/x')
+  assert.equal(api.linkFromHref('http://a.example/b'), 'http://a.example/b')
+  assert.equal(api.linkFromHref('mailto:a@b.c'), '')
+  assert.equal(api.linkFromHref('javascript:alert(1)'), '')
+  assert.equal(api.linkFromHref('file:///C:/a.ts'), '')
+  assert.equal(api.linkFromHref('/local/path'), '')
+  assert.equal(api.linkFromHref(''), '')
 })

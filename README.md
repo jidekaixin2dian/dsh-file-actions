@@ -2,7 +2,7 @@
 
 [English](README.en.md)
 
-`main` 包含 **0.1.6 待发布**修复。已发布的 0.1.5 及更早版本尚未隔离 HTML/SVG 预览与 DSH 页面；新包发布前请使用下方 GitHub 源码安装方式。见[安全说明](SECURITY.md)和[变更记录](CHANGELOG.md)。
+已发布 **0.1.7**：修复与 Toolgate 同时安装时的启动冲突，并让 GitHub 等网页链接也走同一个右键菜单。见[安全说明](SECURITY.md)和[变更记录](CHANGELOG.md)。
 
 在 DSH 聊天里右键文件名，直接打开、用别的应用打开、在资源管理器里定位、复制路径或内容、另存为。
 
@@ -15,10 +15,10 @@
 先完全退出 DSH 桌面端，再执行：
 
 ```powershell
-dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions
+dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
 ```
 
-装完重开 DSH 生效。未发布 npm。上述命令安装当前 GitHub 源码；历史安装包保留在 Release 页面。
+装完重开 DSH 生效。未发布 npm，只提供 Release 包；想跟 main 源码走可以用 dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions。
 
 卸载：dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions，然后重开 DSH。
 
@@ -31,6 +31,7 @@ dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions
 - 工具调用行（读取、写入、编辑）里的文件链接
 - 右侧文件树
 - 文档预览标题
+- GitHub 等网页链接（同一个蓝色样式）
 
 ![打开方式](assets/preview-open-with.png)
 
@@ -43,6 +44,7 @@ dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions
 | 视频、音频 | 打开、打开方式、在浏览器中播放（mp4 / mov / webm、mp3 / wav / flac 等）、另存为 |
 | Office、压缩包、设计稿、3D、磁盘镜像、二进制 | 打开、打开方式、在资源管理器中显示、复制路径、另存为 |
 | 文件夹 | 打开文件夹、在资源管理器中打开、复制路径、复制相对路径 |
+| 网页链接 | 打开链接、复制链接、复制链接文字 |
 
 「打开方式」列出系统里注册的应用，带真实图标；应用超过 7 个会出现搜索框。
 
@@ -67,7 +69,7 @@ dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions
 
 ## 常见问题
 
-**右键没有反应？** 光标下的文字要对得上一个真实文件。普通文字、输入框里的内容、网页链接都保留系统菜单。
+**右键没有反应？** 光标下的文字要对得上一个真实文件或网页链接。普通文字、输入框里的内容保留系统菜单。
 
 **菜单里没有「打开方式」？** 系统没有为这个扩展名注册关联应用，或者关联查询还没返回——菜单会先出现，应用列表随后补上。
 

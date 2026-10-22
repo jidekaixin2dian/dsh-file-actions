@@ -31,6 +31,7 @@ Right-click a file name in any of these places:
 - file links in tool-call rows (read, write, edit)
 - the right Sidebar file tree
 - the document preview title
+- web links with the same blue style (GitHub releases, discussions, …)
 
 ![Open with](assets/preview-open-with.png)
 
@@ -43,6 +44,7 @@ The rows follow the file type:
 | Video, audio | open, open with, play in browser (mp4 / mov / webm, mp3 / wav / flac …), save as |
 | Office, archives, design files, 3D, disk images, binaries | open, open with, reveal, copy path, save as |
 | Folders | open folder, reveal, copy path, copy relative path |
+| Web links | open link, copy link, copy link text |
 
 *Open with* lists the applications registered on your system, with their real icons; once there are more than seven, a search box appears.
 
@@ -67,7 +69,7 @@ Keyboard works too: `Shift+F10` or the menu key opens the same menu, `↑ ↓` m
 
 ## FAQ
 
-**Nothing happens on right-click?** The text under the cursor has to match a real file. Plain prose, editable fields and web links keep the system menu.
+**Nothing happens on right-click?** The text under the cursor has to match a real file or a web link. Plain prose and editable fields keep the system menu.
 
 **No *Open with* row?** The system has no registered handler for that extension, or the association query has not answered yet — the menu appears first and the application rows drop in afterwards.
 

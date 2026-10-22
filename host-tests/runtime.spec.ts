@@ -34,7 +34,7 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
           <button id="note" data-file-actions-path="note.txt">note.txt</button>
           <a id="resource" href="dsh-resource://file/session/other/note.txt"><span title="wrong.txt">note.txt</span></a>
           <script>window.__ModuleLoader__ = { load(def) { window.plugin = def.factory() } };</script>
-          <script src="/client.js"></script><script>
+          <script>const factory = "unrelated plugin";</script><script src="/client.js"></script><script>
           window.urls = { created: [], revoked: [] };
           const create = URL.createObjectURL.bind(URL), revoke = URL.revokeObjectURL.bind(URL);
           URL.createObjectURL = (blob) => { const u=create(blob); urls.created.push(u); return u };

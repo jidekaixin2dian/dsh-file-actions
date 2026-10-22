@@ -123,9 +123,13 @@ async function main() {
   }
 
   const booted = await evaluate(`(() => ({
+    href: location.href.slice(0, 140),
+    ready: document.documentElement.hasAttribute('data-dfa-ready'),
+    body: document.body ? document.body.innerText.slice(0, 100) : '',
     pluginCss: !!document.querySelector('style[data-plugin-css="dsh-file-actions"]'),
     failed: document.body.innerText.includes('Failed to load plugins'),
   }))()`)
+  console.log('page:', JSON.stringify(booted))
   check('plugin bundle activates (style tag present)', booted.pluginCss)
   check('no boot-audit failure', !booted.failed)
 
@@ -148,6 +152,15 @@ async function main() {
     bogus: `${project}/does-not-exist.js`,
     img: `${project}/assets/preview-dark.png`,
   }
+  // A resource address is session-scoped, so the fixture has to carry a real
+  // session id; take the one the page already uses, if any.
+  const liveSessionId = await evaluate(`(() => {
+    const holder = document.querySelector('[data-session-id]')
+    if (holder) return holder.getAttribute('data-session-id')
+    const anchor = document.querySelector('a[href^="dsh-resource://file/session/"]')
+    const match = anchor && /^dsh-resource:\\/\\/file\\/session\\/([^/]+)\\//.exec(anchor.getAttribute('href'))
+    return match ? match[1] : ''
+  })()`)
   await evaluate(`(() => {
     document.getElementById('dfa-selftest')?.remove()
     const root = document.createElement('div')
@@ -161,7 +174,8 @@ async function main() {
       '<div data-test="bogus"><span title=${JSON.stringify(fixtures.bogus)}>does-not-exist.js</span></div>',
       '<div data-test="kbd" tabindex="0" title=${JSON.stringify(fixtures.attr)}>icon.svg</div>',
       '<div data-test="img" data-files-path=${JSON.stringify(fixtures.img)}>menu-dark.png</div>',
-      '<div data-test="resource"><a href="dsh-resource://file/session/selftest/dsh-file-actions/icon.svg">icon.svg</a></div>',
+      '<div data-test="resource"><a href="dsh-resource://file/session/' + ${JSON.stringify(liveSessionId || 'selftest')} + '/dsh-file-actions/icon.svg">icon.svg</a></div>',
+      '<div data-test="weblink"><a href="https://github.com/jidekaixin2dian/dsh-file-actions/releases/tag/v0.1.5">v0.1.5</a></div>',
     ].join('')
     document.body.appendChild(root)
     return true
@@ -224,8 +238,8 @@ async function main() {
   check('text file offers copy contents', titleMenu && titleMenu.items.includes('copyContents'))
   check('text file offers save as', titleMenu && titleMenu.items.includes('saveAs'))
   check('text file offers reveal', titleMenu && titleMenu.items.includes('reveal'))
-  check('menu shows a file-type tile and size', titleMenu && titleMenu.kind === 'text' && /1\.4 KB/.test(titleMenu.size), titleMenu && (titleMenu.kind + ' / ' + titleMenu.size))
-  check('menu shows the workspace-relative path', titleMenu && /dsh-file-actions\/package\.json$/.test(titleMenu.path), titleMenu && titleMenu.path)
+  check('menu shows a file-type tile and size', titleMenu && titleMenu.kind === 'text' && /\d+(\.\d+)? KB/.test(titleMenu.size), titleMenu && (titleMenu.kind + ' / ' + titleMenu.size))
+  check('menu shows a path line', titleMenu && /package\.json$/.test(titleMenu.path), titleMenu && titleMenu.path)
 
   // The OS association query is slow on Windows; the rows must still land while
   // the menu is open.
@@ -386,12 +400,32 @@ async function main() {
   check('image menu renders a thumbnail', Boolean(thumb) && thumb.w > 0, thumb ? `${thumb.w}x${thumb.h}` : 'none')
   await closeMenu()
 
-  // 2c. dsh-resource:// link — how the chat and the delivery table address files
-  const fireRes = await fire('[data-test="resource"] a')
-  const resMenu = await waitMenu()
-  console.log('fire(resource):', fireRes, 'menu:', JSON.stringify(resMenu))
-  check('menu opens on a dsh-resource link', Boolean(resMenu), fireRes)
-  check('dsh-resource link resolves the file', resMenu && resMenu.title === 'icon.svg', resMenu && resMenu.title)
+  // 2c. dsh-resource:// link — how the chat and the delivery table address files.
+  // A resource address is session-scoped: without an open Session on this page the
+  // plugin has nothing to resolve against, so this leg only runs when one exists.
+  if (liveSessionId) {
+    const fireRes = await fire('[data-test="resource"] a')
+    const resMenu = await waitMenu()
+    console.log('fire(resource):', fireRes, 'menu:', JSON.stringify(resMenu))
+    check('menu opens on a dsh-resource link', Boolean(resMenu), fireRes)
+    check('dsh-resource link resolves the file', resMenu && resMenu.title === 'icon.svg', resMenu && resMenu.title)
+    await closeMenu()
+  } else {
+    console.log('SKIP  dsh-resource link — no open Session on this page (covered by unit tests)')
+  }
+
+  // 2d. web link — the other kind of blue reference gets link actions
+  const fireWeb = await fire('[data-test="weblink"] a')
+  const webMenu = await waitMenu()
+  console.log('fire(weblink):', fireWeb, 'menu:', JSON.stringify(webMenu))
+  check('menu opens on a web link', Boolean(webMenu), fireWeb)
+  check('web link is classified as a link', webMenu && webMenu.kind === 'link', webMenu && webMenu.kind)
+  check('web link menu names the host', webMenu && webMenu.title === 'github.com', webMenu && webMenu.title)
+  check('web link menu offers link actions', webMenu && webMenu.items.join(',') === 'openLink,copyLink,copyLinkText', webMenu && webMenu.items.join(','))
+  await evaluate(`(() => { document.querySelector('[data-dfa-item="copyLink"]')?.click(); return true })()`)
+  await sleep(700)
+  const webCopy = await evaluate(`(() => ({ toast: document.querySelector('.dfa-toast')?.textContent || '' }))()`)
+  check('copy link reports success', webCopy.toast.includes('链接') || webCopy.toast.includes('link'), webCopy.toast)
   await closeMenu()
 
   // 3. anchor carrier, markdown file

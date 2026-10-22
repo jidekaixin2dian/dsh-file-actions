@@ -1,18 +1,38 @@
 # Changelog
 
-## Unreleased
+## 0.1.7
 
-- Isolate active HTML/SVG browser previews from the DSH origin while retaining
-  script execution inside a sandboxed frame; clear the popup opener.
-- Keep POSIX roots and resource Session identity, prefer a resource address over
-  a child tooltip, and use case-sensitive POSIX path comparisons.
-- Cancel stale menu opens after another click or unload; revoke thumbnail URLs
-  on unload, key cached thumbnails by Session/path/version and reject partial data.
-- Add reproducible real-host/browser CI and archive installation checks. Replace
-  personal paths, direct profile mutation and port-owner termination in optional
-  full-Web tooling with the official CLI and owned-process validation.
+- 蓝色引用统一：GitHub 等网页链接也走同一个菜单，给「打开链接 / 复制链接 / 复制链接文字」。
+- 修掉与 Toolgate 同时安装时的启动报错：两个浏览器 bundle 都在顶层声明 `const factory`，DSH 合并加载时冲突；现在各自隔离作用域，并补了重复加载的回归测试。
+- 一并包含 0.1.6 的未发布修复：HTML/SVG 预览改用独立来源的 sandbox 帧、资源地址优先于子元素提示、切换点击时取消过期菜单、缩略图缓存按会话/路径/版本、可复现的真实宿主与浏览器检查。
+
+## 0.1.6
+
+- HTML/SVG 预览与 DSH 页面隔离（sandbox 帧，保留脚本执行），清空 popup opener。
+- 保留 POSIX 根与资源地址的 Session 身份；资源地址优先于子元素 title；POSIX 路径区分大小写。
+- 取消过期菜单、卸载时回收缩略图 URL、缩略图按会话/路径/版本缓存并拒绝不完整数据。
+- 增加可复现的真实宿主/浏览器 CI 与归档安装检查；可选全 Web 工具改用官方 CLI 与自有进程校验。
 
 ## 0.1.5
 
-Historical release: resource links, decorated filenames, subtitle and media
-classification. The published tarball does not include the unreleased fixes.
+资源链接、带装饰的文件名、字幕与媒体分类。
+
+## 0.1.4
+
+`dsh-resource://` 链接、字幕、视频与音频类型。
+
+## 0.1.3
+
+「打开方式」搜索、滚动渐隐、图片缩略图、市场预览图。
+
+## 0.1.2
+
+菜单视觉重做：文件身份头部、键盘提示、子菜单表头。
+
+## 0.1.1
+
+自审修复：复制上限、焦点与滚动、无扩展名文件。
+
+## 0.1.0
+
+首个版本。
