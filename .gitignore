@@ -8,3 +8,6 @@ test-e2e/token.txt
 test-e2e/instance-*.log
 test-e2e/explore/
 test-e2e/.chrome-market/
+AGENTS.md
+HANDOFF.md
+submission/

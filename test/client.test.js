@@ -427,8 +427,7 @@ test('subtitles, video and audio are classified for the menu', () => {
   assert.equal(api.mimeOf('a.mp3'), 'audio/mpeg')
 })
 
-test('a video file gets the browser row, a subtitle file the copy row', () => {
-  const video = api.buildMenuModel({
+test('a video file gets the browser row, a subtitle file the copy row', () => {  const video = api.buildMenuModel({
     absolutePath: 'D:\\repo\\out\\成片.mp4', displayPath: 'out/成片.mp4', isDir: false, apps: [], bytes: 34603008, cwd: 'D:\\repo', t: zh,
   })
   const videoIds = video.sections.flat().map((item) => item.id)
@@ -444,4 +443,15 @@ test('a video file gets the browser row, a subtitle file the copy row', () => {
   assert.equal(subtitleIds.includes('copyContents'), true)
   assert.equal(subtitleIds.includes('browser'), false)
   assert.equal(subtitle.kindLabel, '文本')
+})
+
+// A delivery table renders "📄发布文案.md"; the decoration must not defeat detection.
+test('icon and bullet decorations are stripped from a file name', () => {
+  assert.equal(api.stripDecorations('📄发布文案.md'), '发布文案.md')
+  assert.equal(api.stripDecorations('▸ 字幕.srt'), '字幕.srt')
+  assert.equal(api.stripDecorations('• 剪辑工程.zip'), '剪辑工程.zip')
+  assert.equal(api.stripDecorations('  🔗 配音来源.json'), '配音来源.json')
+  assert.equal(api.stripDecorations('D:\\a\\b.md'), 'D:\\a\\b.md')
+  assert.equal(api.stripDecorations('.env.local'), '.env.local')
+  assert.equal(api.stripDecorations('/abs/x.ts'), '/abs/x.ts')
 })

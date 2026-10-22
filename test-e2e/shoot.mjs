@@ -11,7 +11,7 @@ const project = projectDir.replace(/\\/g, '/')
 const TOKEN = process.argv[2] || fs.readFileSync(path.join(here, 'token.txt'), 'utf8').trim()
 const PORT = Number(process.argv[3] || 5499)
 const CDP_PORT = Number(process.env.DFA_CDP_PORT || 9224)
-const CHROME = 'C:\\Users\\Aether\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe'
+const CHROME = process.env.DFA_CHROME || path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1243', 'chrome-win64', 'chrome.exe')
 const USER_DIR = path.join(here, '.chrome-shoot')
 const OUT = path.join(here, 'run')
 const PAGE = `http://127.0.0.1:${PORT}/?token=${TOKEN}`

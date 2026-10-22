@@ -24,7 +24,7 @@ const TOKEN = process.argv[2] || (fs.existsSync(tokenFile) ? fs.readFileSync(tok
 const PORT = Number(process.argv[3] || 5499)
 const CDP_PORT = Number(process.env.DFA_CDP_PORT || 9223)
 const CHROME = process.env.DFA_CHROME
-  || 'C:\\Users\\Aether\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe'
+  || path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1243', 'chrome-win64', 'chrome.exe')
 const USER_DIR = path.join(here, '.chrome-profile')
 const PAGE = `http://127.0.0.1:${PORT}/?token=${TOKEN}`
 

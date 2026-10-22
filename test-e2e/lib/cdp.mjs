@@ -8,22 +8,25 @@ import os from 'node:os';
 import path from 'node:path';
 import { WebSocketClient } from './ws.mjs';
 
-const CHROME_CANDIDATES = [
-  'C:\\Users\\Aether\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe',
-  'C:\\Users\\Aether\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1243\\chrome-headless-shell-win64\\chrome-headless-shell.exe',
-];
+// The browser comes from the Playwright cache; keep the machine-specific root out
+// of the repository — set DFA_CHROME or rely on %LOCALAPPDATA%.
+const PLAYWRIGHT_ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'ms-playwright');
 
 export function findChrome() {
-  for (const p of CHROME_CANDIDATES) if (fs.existsSync(p)) return p;
-  const root = 'C:\\Users\\Aether\\AppData\\Local\\ms-playwright';
-  if (fs.existsSync(root)) {
-    for (const dir of fs.readdirSync(root)) {
-      if (!dir.startsWith('chromium-')) continue;
-      const p = path.join(root, dir, 'chrome-win64', 'chrome.exe');
+  if (process.env.DFA_CHROME && fs.existsSync(process.env.DFA_CHROME)) return process.env.DFA_CHROME;
+  if (fs.existsSync(PLAYWRIGHT_ROOT)) {
+    const dirs = fs.readdirSync(PLAYWRIGHT_ROOT);
+    const exact = dirs.filter((dir) => dir.startsWith('chromium-')).sort().reverse();
+    for (const dir of exact) {
+      const p = path.join(PLAYWRIGHT_ROOT, dir, 'chrome-win64', 'chrome.exe');
+      if (fs.existsSync(p)) return p;
+    }
+    for (const dir of dirs.filter((name) => name.startsWith('chromium_headless_shell-'))) {
+      const p = path.join(PLAYWRIGHT_ROOT, dir, 'chrome-headless-shell-win64', 'chrome-headless-shell.exe');
       if (fs.existsSync(p)) return p;
     }
   }
-  throw new Error('no Chromium found under %LOCALAPPDATA%\\ms-playwright');
+  throw new Error(`no Chromium found under ${PLAYWRIGHT_ROOT} — set DFA_CHROME`);
 }
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
