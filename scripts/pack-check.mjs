@@ -11,7 +11,7 @@ const result = spawnSync(process.execPath, [npm, 'pack', '--ignore-scripts', '--
 assert.equal(result.status, 0, result.stderr)
 const parsed = JSON.parse(result.stdout)
 const packed = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0]
-const required = ['package.json','lib/index.js','lib/client.js','cordis.patch.yml','icon.svg','README.md','README.en.md','LICENSE','SECURITY.md']
+const required = ['package.json','lib/index.js','lib/client.js','cordis.patch.yml','icon.svg','README.md','README.en.md','CHANGELOG.md','LICENSE','SECURITY.md']
 for (const file of required) assert.ok(packed.files.some(entry => entry.path === file), file)
 assert.ok(packed.files.every(entry => required.includes(entry.path) || /^assets\/preview-[\w-]+\.png$/.test(entry.path)))
 const archive = path.join(output, packed.filename)
