@@ -58,7 +58,9 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
       for await (const chunk of req) { buffers.push(chunk); if (buffers.reduce((n,b)=>n+b.length,0)>8192) throw new Error('fixture body cap') }
       const args = JSON.parse(Buffer.concat(buffers).toString())
       // This fixture serves only its known synthetic files, never arbitrary paths.
-      if (!['active', 'other'].includes(args.id) || path.dirname(args.path) !== host.workspace
+      // Windows runners may expose a short TEMP spelling (RUNNER~1) while the
+      // Host returns its canonical long path. Compare filesystem identities.
+      if (!['active', 'other'].includes(args.id) || path.dirname(fs.realpathSync(args.path)) !== fs.realpathSync(host.workspace)
         || !['preview.html','note.txt','large.txt','image.svg'].includes(path.basename(args.path))) throw new Error('fixture path rejected')
       calls.push(args)
       if (pending && args.op === 'stat') { pending = false; await new Promise<void>(resolve => { release = resolve }) }
@@ -114,7 +116,9 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
 
     await page.locator('#note').evaluate((el: HTMLElement) => { el.dataset.fileActionsPath = 'image.svg' })
     await page.locator('#note').click({ button: 'right' })
-    await expect.poll(() => page.locator('[data-dfa-menu] img').count()).toBe(1)
+    await expect.poll(() => page.locator('[data-dfa-menu] img').count(), {
+      message: 'Host-canonical thumbnail must load from the same synthetic workspace',
+    }).toBe(1)
     await page.evaluate(() => (window as any).cleanup())
     expect(await page.locator('[data-dfa-menu]').count()).toBe(0)
     expect(await page.evaluate(() => (window as any).urls.revoked.length)).toBeGreaterThan(0)
