@@ -56,6 +56,10 @@ Image files get a thumbnail:
 
 Keyboard works too: `Shift+F10` or the menu key opens the same menu, `↑ ↓` move, `→` enters the submenu, `Enter` runs, `Esc` closes.
 
+Readable on a wallpaper with a liquid-glass theme — the menu paints a near-opaque base under the themed layer:
+
+![Readability over a wallpaper](assets/preview-glass.png)
+
 ![Light theme](assets/preview-light.png)
 
 ## Limitations

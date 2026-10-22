@@ -56,6 +56,10 @@ dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-act
 
 键盘也能用：`Shift+F10` 或菜单键打开，`↑ ↓` 移动，`→` 进子菜单，`Enter` 执行，`Esc` 关闭。
 
+壁纸 + 液态玻璃主题下也能看清（菜单底下垫了一层接近不透明的底）：
+
+![玻璃主题下的可读性](assets/preview-glass.png)
+
 ![浅色主题](assets/preview-light.png)
 
 ## 限制

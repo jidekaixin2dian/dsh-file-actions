@@ -125,7 +125,10 @@ async function main() {
   const booted = await evaluate(`(() => ({
     href: location.href.slice(0, 140),
     ready: document.documentElement.hasAttribute('data-dfa-ready'),
-    body: document.body ? document.body.innerText.slice(0, 100) : '',
+    body: document.body ? document.body.innerText.slice(0, 40) : '',
+    bgBase: getComputedStyle(document.body).getPropertyValue('--dsw-alias-bg-base'),
+    bgLayer1: getComputedStyle(document.body).getPropertyValue('--dsw-alias-bg-layer-1'),
+    bodyBg: getComputedStyle(document.body).backgroundColor,
     pluginCss: !!document.querySelector('style[data-plugin-css="dsh-file-actions"]'),
     failed: document.body.innerText.includes('Failed to load plugins'),
   }))()`)
@@ -238,6 +241,15 @@ async function main() {
   check('text file offers copy contents', titleMenu && titleMenu.items.includes('copyContents'))
   check('text file offers save as', titleMenu && titleMenu.items.includes('saveAs'))
   check('text file offers reveal', titleMenu && titleMenu.items.includes('reveal'))
+  const floor = await evaluate(`(() => {
+    const menu = document.querySelector('[data-dfa-menu]:not(.dfa-sub)')
+    if (!menu) return null
+    const color = getComputedStyle(menu).backgroundColor
+    const match = /rgba?\(([^)]+)\)/.exec(color)
+    const parts = match ? match[1].split(',').map(Number) : []
+    return { color, alpha: parts.length > 3 ? parts[3] : 1 }
+  })()`)
+  check('menu has an opaque readability floor', Boolean(floor) && floor.alpha >= 0.85, floor && floor.color)
   check('menu shows a file-type tile and size', titleMenu && titleMenu.kind === 'text' && /\d+(\.\d+)? KB/.test(titleMenu.size), titleMenu && (titleMenu.kind + ' / ' + titleMenu.size))
   check('menu shows a path line', titleMenu && /package\.json$/.test(titleMenu.path), titleMenu && titleMenu.path)
 

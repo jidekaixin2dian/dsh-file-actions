@@ -168,6 +168,31 @@ const opened = await evaluate(`(async () => {
 console.log('menu after fire:', JSON.stringify(opened))
 await shoot('menu-text-dark.png')
 
+// Simulate the liquid-glass + wallpaper theme: a bright gradient behind the menu.
+await evaluate(`(() => {
+  document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+  const bg = document.createElement('div')
+  bg.id = 'dfa-wallpaper'
+  bg.style.cssText = 'position:fixed;inset:0;z-index:2147481000;background:linear-gradient(135deg,#f6d365,#fda085 35%,#84fab0 70%,#8fd3f4)'
+  document.body.appendChild(bg)
+  // Simulate the liquid-glass theme before the menu opens, so the floor is
+  // computed from the translucent surface itself.
+  document.documentElement.style.setProperty('--dsw-alias-bg-layer-1', 'rgba(26,27,31,0.30)')
+  document.documentElement.style.setProperty('--dsw-alias-bg-layer-2', 'rgba(26,27,31,0.30)')
+  return true
+})()`)
+await sleep(400)
+await fire('[data-test="title"] span', 10)
+for (let i = 0; i < 40; i += 1) {
+  if (await evaluate(`!!document.querySelector('[data-dfa-menu]')`)) break
+  await sleep(150)
+}
+await sleep(400)
+await sleep(350)
+await shoot('menu-glass-dark.png')
+await evaluate(`(() => { document.getElementById('dfa-wallpaper')?.remove(); document.documentElement.style.removeProperty('--dsw-alias-bg-layer-1'); document.documentElement.style.removeProperty('--dsw-alias-bg-layer-2'); return true })()`)
+await sleep(250)
+
 // Open the "open with" submenu for the second shot.
 await evaluate(`(() => {
   const item = document.querySelector('[data-dfa-item="openWith"]')
