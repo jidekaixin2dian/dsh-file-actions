@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "File Actions",
+    "description": "Right-click a file name in the chat to open it, open it with another application, reveal it, copy its path or contents, or save it."
+  }
+}

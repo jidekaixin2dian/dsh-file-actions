@@ -1,6 +1,6 @@
 {
   "name": "@jidekaixin2dian/dsh-file-actions",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Codex-style right-click file menu for DeepSeek Harness: open, open with, reveal, copy path, copy contents and save as on every file reference in the chat.",
   "icon": "icon.svg",
   "type": "module",
@@ -8,10 +8,12 @@
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib",
+    "locale/*.json",
     "cordis.patch.yml",
     "README.md",
     "README.en.md",

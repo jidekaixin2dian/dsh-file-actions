@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9
+
+- 插件面板显示中文名与中文简介（`locale/zh.json`、`locale/en.json` 的 `meta.title` / `meta.description`），卡片和详情不再回落到英文 package.json 描述。
+
 ## 0.1.8
 
 - 菜单与提示条加一层按主题计算的可读性底：液态玻璃/壁纸主题下文字不再被背景冲淡，玻璃感保留。
