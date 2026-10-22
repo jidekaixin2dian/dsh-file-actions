@@ -16,6 +16,8 @@ dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-act
 
 装完重开 DSH 生效。没发到 npm，只提供上面这个 release 包。
 
+卸载：dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions，然后重开 DSH。
+
 ## 怎么用
 
 在聊天里右键这些位置的文件名：

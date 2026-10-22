@@ -16,6 +16,8 @@ dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-act
 
 Reopen DSH and it is active. It is not on npm; the release tarball above is the only distribution.
 
+To remove it: dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions, then reopen DSH.
+
 ## Using it
 
 Right-click a file name in any of these places:

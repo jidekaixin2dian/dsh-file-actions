@@ -11,3 +11,6 @@ test-e2e/.chrome-market/
 AGENTS.md
 HANDOFF.md
 submission/
+test-e2e/REPORT*.md
+test-e2e/ground-truth.json
+release-notes.md
