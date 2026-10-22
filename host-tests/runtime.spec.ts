@@ -11,6 +11,7 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
   const project = process.env.DFA_PROJECT!
   const client = fs.readFileSync(path.join(project, 'lib/client.js'), 'utf8')
   const calls: Array<{ id: string; path: string; op: string }> = []
+  const fixtureErrors: string[] = []
   let release: (() => void) | undefined
   let pending = false
   const attack = `<html><body><script>
@@ -68,14 +69,15 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
         : args.op === 'readBytes' ? await endpoint.readBytes(host.scope, args.path, args.options || {}, signal()) : null
       res.setHeader('content-type', 'application/json')
       res.end(JSON.stringify({ ok: true, value: args.op === 'readBytes' ? { ...value, data: Array.from((value as any).data) } : value }))
-    } catch { res.end(JSON.stringify({ ok: false })) }
+    } catch (error) { fixtureErrors.push(String(error)); res.end(JSON.stringify({ ok: false })) }
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address() as { port: number }
   let browser
+  let page
   try {
     browser = await chromium.launch(process.platform === 'win32' ? { channel: 'msedge', headless: true } : { headless: true })
-    const page = await browser.newPage({ viewport: { width: 1100, height: 800 } })
+    page = await browser.newPage({ viewport: { width: 1100, height: 800 } })
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))
     await page.goto(`http://127.0.0.1:${address.port}/`)
@@ -114,6 +116,14 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     const download = await downloadPromise
     expect(fs.statSync((await download.path())!).size).toBe(3 * 1024 * 1024)
 
+    // Popup/download UI can deliver a late window blur on Windows. Start the
+    // independent menu-lifetime checks in a fresh foreground page so those OS
+    // focus events cannot be mistaken for a thumbnail/lifecycle failure.
+    await page.close()
+    page = await browser.newPage({ viewport: { width: 1100, height: 800 } })
+    page.on('pageerror', error => errors.push(error.message))
+    await page.goto(`http://127.0.0.1:${address.port}/`)
+    await page.bringToFront()
     await page.locator('#note').evaluate((el: HTMLElement) => { el.dataset.fileActionsPath = 'image.svg' })
     await page.locator('#note').click({ button: 'right' })
     await expect.poll(() => page.locator('[data-dfa-menu] img').count(), {
@@ -136,6 +146,12 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     expect(await page.locator('[data-dfa-menu]').count()).toBe(0)
     expect(errors).toEqual([])
     await page.screenshot({ path: path.join(project, 'work/results/browser.png') })
+  } catch (error) {
+    const diagnostics = await page?.evaluate(() => ({ debug: (window as any).__dfaDebug,
+      urls: (window as any).urls, focused: document.hasFocus(), menu: document.querySelector('[data-dfa-menu]')?.outerHTML }))
+    fs.writeFileSync(path.join(project, 'work/results/failure.json'), JSON.stringify({ diagnostics, calls, fixtureErrors }, null, 2))
+    await page?.screenshot({ path: path.join(project, 'work/results/failure.png') }).catch(() => {})
+    throw error
   } finally {
     release?.()
     await browser?.close()
