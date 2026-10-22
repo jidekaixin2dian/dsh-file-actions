@@ -1,11 +1,10 @@
-## dsh-file-actions v0.1.3
+## dsh-file-actions v0.1.4
 
-Three things the menu was missing once the list got long:
+File-type and link-shape coverage, for real delivery folders:
 
-- **Search in "Open with"** — the association submenu grows a filter box as soon as it has more than seven applications. Type to narrow, ↑↓ to move, Enter to launch, Escape clears the filter before it closes the submenu.
-- **Scroll fades** — a clipped list now fades at its edges instead of stopping mid-row, so it reads as scrollable.
-- **Image thumbnails** — right-click an image (or an SVG) and the menu shows a real preview above the file header, loaded through the same `workspaceFiles.readBytes` route and cached per path.
+- **`dsh-resource://file/session/<id>/<path>` links now open the menu.** That is how the chat, the Sidebar and the delivery table address a file — before this release those anchors looked like ordinary web links and kept Chromium's menu.
+- **Subtitles are text**: `.srt`, `.ass`, `.ssa`, `.vtt`, `.lrc`, `.sbv` get "copy file contents" instead of being treated as binary.
+- **Video and audio are their own kinds**: `.mp4/.mov/.webm/.ogv` and `.mp3/.wav/.flac/.m4a/.ogg` get "open in browser" (Chromium plays them in a blob tab) plus save-as; `.mkv/.avi/.wmv` and the rest still get open/reveal/save-as.
+- **Wider extension table**: notebooks, LaTeX, shaders, design files (`.psd/.ai/.fig/.sketch/.blend/.fbx/.glb`), disk images, fonts, camera raw and a long tail of source/config formats are now recognised as files instead of being ignored.
 
-Also in this release: `screenshots.json` at the repository root, which is what the dsh-market card actually reads for its preview strip.
-
-Verification: 30 unit tests, 39 real-app assertions on DSH 0.2.1-rc.2.
+Verification: 33 unit tests, 41 real-app assertions on DSH 0.2.1-rc.2.

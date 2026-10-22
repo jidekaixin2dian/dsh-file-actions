@@ -394,3 +394,54 @@ test('the header path prefers the workspace-relative form', () => {
   assert.equal(dir.sizeLabel, '')
   assert.equal(dir.pathLine, 'lib')
 })
+
+// The chat, the Sidebar and the delivery table link files as dsh-resource://file/…
+test('pathFromHref understands dsh-resource file addresses', () => {
+  assert.equal(api.pathFromHref('dsh-resource://file/session/s1/lib/a.ts'), 'lib/a.ts')
+  assert.equal(api.pathFromHref('dsh-resource://file/session/s1/C:/x/y.png'), 'C:/x/y.png')
+  assert.equal(api.pathFromHref('dsh-resource://file/session/s1/%E4%BA%A4%E4%BB%98/%E5%AD%97%E5%B9%95.srt'), '交付/字幕.srt')
+  assert.equal(api.pathFromHref('dsh-resource://file/session/s1/a.srt#L3'), 'a.srt')
+  assert.equal(api.pathFromHref('dsh-resource://file/session/s1/'), '')
+  assert.equal(api.pathFromHref('https://example.com/a.ts'), '')
+})
+
+test('subtitles, video and audio are classified for the menu', () => {
+  for (const name of ['a.srt', 'a.ass', 'a.ssa', 'a.vtt', 'a.lrc']) {
+    const kind = api.classify(name, false)
+    assert.equal(kind.kind, 'text', name)
+    assert.equal(kind.canCopyText, true, name)
+  }
+  const mp4 = api.classify('成片.mp4', false)
+  assert.equal(mp4.kind, 'video')
+  assert.equal(mp4.canBrowser, true)
+  assert.equal(mp4.canCopyText, false)
+  const mkv = api.classify('a.mkv', false)
+  assert.equal(mkv.kind, 'video')
+  assert.equal(mkv.canBrowser, false)
+  const mp3 = api.classify('a.mp3', false)
+  assert.equal(mp3.kind, 'audio')
+  assert.equal(mp3.canBrowser, true)
+  assert.equal(api.classify('a.psd', false).kind, 'binary')
+  assert.equal(api.classify('a.ipynb', false).kind, 'text')
+  assert.equal(api.mimeOf('a.mp4'), 'video/mp4')
+  assert.equal(api.mimeOf('a.mp3'), 'audio/mpeg')
+})
+
+test('a video file gets the browser row, a subtitle file the copy row', () => {
+  const video = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\out\\成片.mp4', displayPath: 'out/成片.mp4', isDir: false, apps: [], bytes: 34603008, cwd: 'D:\\repo', t: zh,
+  })
+  const videoIds = video.sections.flat().map((item) => item.id)
+  assert.equal(videoIds.includes('browser'), true)
+  assert.equal(videoIds.includes('copyContents'), false)
+  assert.equal(videoIds.includes('saveAs'), true)
+  assert.equal(video.kindLabel, '视频')
+
+  const subtitle = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\out\\字幕.srt', displayPath: 'out/字幕.srt', isDir: false, apps: [], bytes: 2048, cwd: 'D:\\repo', t: zh,
+  })
+  const subtitleIds = subtitle.sections.flat().map((item) => item.id)
+  assert.equal(subtitleIds.includes('copyContents'), true)
+  assert.equal(subtitleIds.includes('browser'), false)
+  assert.equal(subtitle.kindLabel, '文本')
+})

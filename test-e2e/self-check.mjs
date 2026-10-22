@@ -147,7 +147,7 @@ async function main() {
     anchor: `${project}/README.md`,
     text: `${project}/lib/client.js`,
     bogus: `${project}/does-not-exist.js`,
-    img: `${project}/assets/menu-dark.png`,
+    img: `${project}/assets/preview-dark.png`,
   }
   await evaluate(`(() => {
     document.getElementById('dfa-selftest')?.remove()
@@ -162,6 +162,7 @@ async function main() {
       '<div data-test="bogus"><span title=${JSON.stringify(fixtures.bogus)}>does-not-exist.js</span></div>',
       '<div data-test="kbd" tabindex="0" title=${JSON.stringify(fixtures.attr)}>icon.svg</div>',
       '<div data-test="img" data-files-path=${JSON.stringify(fixtures.img)}>menu-dark.png</div>',
+      '<div data-test="resource"><a href="dsh-resource://file/session/selftest/dsh-file-actions/icon.svg">icon.svg</a></div>',
     ].join('')
     document.body.appendChild(root)
     return true
@@ -384,6 +385,14 @@ async function main() {
     await sleep(150)
   }
   check('image menu renders a thumbnail', Boolean(thumb) && thumb.w > 0, thumb ? `${thumb.w}x${thumb.h}` : 'none')
+  await closeMenu()
+
+  // 2c. dsh-resource:// link — how the chat and the delivery table address files
+  const fireRes = await fire('[data-test="resource"] a')
+  const resMenu = await waitMenu()
+  console.log('fire(resource):', fireRes, 'menu:', JSON.stringify(resMenu))
+  check('menu opens on a dsh-resource link', Boolean(resMenu), fireRes)
+  check('dsh-resource link resolves the file', resMenu && resMenu.title === 'icon.svg', resMenu && resMenu.title)
   await closeMenu()
 
   // 3. anchor carrier, markdown file
