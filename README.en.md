@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-**0.1.10** improves file verification feedback, preferred applications, menu stability and font scaling. See [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) and the [Changelog](CHANGELOG.md).
+**0.1.11** adds npm distribution, retaining the file verification feedback, preferred applications, menu stability and font scaling from 0.1.10. See [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions), [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) and the [Changelog](CHANGELOG.md).
 
 Right-click files and links to open, reveal, copy or save them.
 
@@ -13,10 +13,24 @@ Right-click files and links to open, reveal, copy or save them.
 Quit the DSH desktop app completely, then run:
 
 ```powershell
+dsh plugin --profile desktop add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
+```
+
+Reopen DSH to activate it. The explicit npm registry avoids mirror synchronization delays. Append `@0.1.11` to the package name to install that exact version.
+
+GitHub Release installation remains available:
+
+```powershell
 dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
 ```
 
-Reopen DSH to activate it. Not published to npm; the command installs the latest Release archive. To follow source instead, use `dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions`.
+To download the npm archive without installing the plugin:
+
+```powershell
+npm pack @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
+```
+
+A plain `npm install` does not register the plugin with DSH; use `dsh plugin` above. To follow source instead, use `dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions`.
 
 To remove it: dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions, then reopen DSH.
 

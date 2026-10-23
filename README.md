@@ -2,7 +2,7 @@
 
 [English](README.en.md)
 
-**0.1.10** 完善文件探测反馈、首选应用、菜单稳定性和字号适配。安装包见[Release](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest)，修复记录见[变更记录](CHANGELOG.md)。
+**0.1.11** 新增 npm 分发，保留 0.1.10 的文件探测反馈、首选应用、菜单稳定性和字号适配。安装包见 [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions) 和 [Release](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest)，修复记录见[变更记录](CHANGELOG.md)。
 
 右键文件和链接，直接打开、定位、复制或另存。
 
@@ -13,10 +13,24 @@
 先完全退出 DSH 桌面端，再执行：
 
 ```powershell
+dsh plugin --profile desktop add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
+```
+
+装完重开 DSH 生效。指定官方 npm 源可以避开镜像同步延迟；安装固定版本时，在包名后加 `@0.1.11`。
+
+也可继续通过 GitHub Release 安装：
+
+```powershell
 dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
 ```
 
-装完重开 DSH 生效。未发布 npm，只提供 Release 包；想跟 main 源码走可以用 dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions。
+只下载 npm 安装包、不安装插件：
+
+```powershell
+npm pack @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
+```
+
+普通 `npm install` 不会把插件注册到 DSH；请使用上面的 `dsh plugin` 命令。想跟 main 源码走可以用 `dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions`。
 
 卸载：dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions，然后重开 DSH。
 
