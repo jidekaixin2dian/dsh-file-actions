@@ -330,6 +330,32 @@ test('a file over the cap never crosses the wire', async () => {
   assert.equal(called, false)
 })
 
+test('copying a file outside the workspace asks first; declined copies read nothing', async () => {
+  const reads = [], prompts = []
+  const bridge = {
+    readBytes: async () => {
+      reads.push(1)
+      return { data: new TextEncoder().encode('secret'), eof: true }
+    },
+  }
+  const outside = { absolutePath: 'C:\\Users\\me\\.ssh\\id_rsa', displayPath: 'id_rsa', outsideWorkspace: true }
+  await api.dispatch({ action: 'copyContents' }, outside, { bridge, t: zh, sessionId: 's', confirm: () => false })
+  assert.equal(reads.length, 0)
+  await api.dispatch({ action: 'copyContents' }, outside, {
+    bridge, t: zh, sessionId: 's',
+    confirm: (message) => { prompts.push(message); return true },
+  })
+  assert.equal(reads.length, 1)
+  assert.ok(prompts[0].includes('C:\\Users\\me\\.ssh\\id_rsa'))
+  assert.ok(prompts[0].startsWith(zh.confirmOutsideCopy.split('\n')[0]))
+  await api.dispatch(
+    { action: 'copyContents' },
+    { absolutePath: 'D:\\r\\a.ts', displayPath: 'a.ts' },
+    { bridge, t: zh, sessionId: 's', confirm: () => { throw new Error('inside the workspace must not ask') } },
+  )
+  assert.equal(reads.length, 2)
+})
+
 test('save as reads the whole file, with no window', async () => {
   const calls = []
   const bridge = {

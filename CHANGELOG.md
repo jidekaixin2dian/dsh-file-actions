@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.12 — 2026-10-24
+
+- 「复制文件内容」作用于会话工作区之外的文件时先弹确认框，说明该文件不属于本对话；拒绝则不读取任何字节。工作区内的复制行为不变。缓解聊天文本被注入绝对路径后的诱导复制。
+- 移除菜单调试用的 `window.__dfaDebug` 全局对象；错误路径保留 `console.warn`。
+- 新增 `npm-publish.yml`：手动触发的 npm 发布 workflow，先跑测试再 `npm publish --provenance`（OIDC 来源证明），action 按 SHA 固定。
+
 ## 0.1.11 — 2026-10-24
 
 - 新增 npm 分发渠道，包名保留 `@jidekaixin2dian/dsh-file-actions`，GitHub Release 安装方式继续可用。

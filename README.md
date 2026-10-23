@@ -16,7 +16,7 @@
 dsh plugin --profile desktop add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
 ```
 
-装完重开 DSH 生效。指定官方 npm 源可以避开镜像同步延迟；安装固定版本时，在包名后加 `@0.1.11`。
+装完重开 DSH 生效。指定官方 npm 源可以避开镜像同步延迟；安装固定版本时，在包名后加 `@0.1.12`。
 
 也可继续通过 GitHub Release 安装：
 
