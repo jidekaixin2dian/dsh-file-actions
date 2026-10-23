@@ -22,7 +22,7 @@ async function menuFixture() {
       <script>window.__ModuleLoader__={load(def){window.plugin=def.factory()}};</script>
       <script src="/client.js"></script><script>
       window.state={missing:true,apps:'ready',delayApps:false,delayThumb:false};
-      window.calls={opens:[],apps:0,stats:0}; window.lastPrevented=null;
+      window.calls={opens:[],apps:0,stats:0,paths:[]}; window.lastPrevented=null;
       document.addEventListener('contextmenu',e=>window.lastPrevented=e.defaultPrevented);
       window.apps=[{id:'player',name:'Media Player'},{id:'code',name:'Visual Studio Code'},
         {id:'notepad',name:'Notepad',default:true},...Array.from({length:7},(_,i)=>({id:'other'+i,name:'Other '+i}))];
@@ -31,7 +31,7 @@ async function menuFixture() {
         session:{openWorkspacePath:async request=>{calls.opens.push(request);return {ok:true,value:{opened:true}}},
           workspacePathApplications:async()=>{calls.apps++;if(state.delayApps)await new Promise(r=>window.releaseApps=r);
             return state.apps==='failed'?{ok:false,error:{code:'gateway/internal'}}:{ok:true,value:state.apps==='empty'?[]:apps}}},
-        workspaceFiles:{stat:async(id,path)=>{calls.stats++;
+        workspaceFiles:{stat:async(id,path)=>{calls.stats++;calls.paths.push(path);
           if((path.endsWith('missing.txt')&&state.missing)||path.endsWith('missing-prose.txt'))
             return {ok:false,error:{code:'workspace-file/not-found'}};
           return {ok:true,value:{absolutePath:path,bytes:32,version:'v1'}}},
@@ -57,12 +57,12 @@ it('cold guesses and Shift preserve the native event; explicit missing files off
     // Dispatch without pointerover to exercise the genuinely cold path.
     const cold = await page.locator('#guess').evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))
     expect(cold).toBe(false)
-    await expect.poll(() => page.evaluate(() => (window as any).calls.stats)).toBe(1)
+    await expect.poll(() => page.evaluate(() => (window as any).calls.paths.includes('/workspace/guess.txt'))).toBe(true)
     await page.locator('#guess').click({ button: 'right' })
     await browserExpect(page.locator('[data-dfa-item="open"]')).toBeVisible()
     await page.keyboard.press('Escape')
     await page.locator('#prose').hover()
-    await expect.poll(() => page.evaluate(() => (window as any).calls.stats)).toBeGreaterThan(1)
+    await expect.poll(() => page.evaluate(() => (window as any).calls.paths.includes('/workspace/missing-prose.txt'))).toBe(true)
     const invalid = await page.locator('#prose').evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))
     expect(invalid).toBe(false)
     await page.locator('#missing').click({ button: 'right' })
