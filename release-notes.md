@@ -1,20 +1,25 @@
 ## 本次更新
 
-插件面板里的名字和简介改成中文。
+引用里的行号不再被丢掉，另补了两个复制动作。
 
-### 修复
+### 新增
 
-- 插件卡片和详情页之前显示的是 package.json 里的英文描述。现在提供 `locale/zh.json` 与 `locale/en.json` 的 `meta.title` / `meta.description`，中文界面显示「文件右键菜单」和中文简介，英文界面显示英文。
-- 打包白名单与隔离安装检查同步覆盖新增的 locale 文件。
+- 引用带行号时（`src/app.ts:42:7`、`notes.md#L42-L48`），菜单头部显示「第 42 行」或「第 42–48 行」，并多出「复制引用」——原样复制整段引用，粘回聊天就能对上位置。
+- 文件菜单新增「复制文件名」；网页链接菜单新增「复制为 Markdown」（`[文字](链接)`）。
+
+### 说明
+
+- 宿主目前的打开接口不接受行号列号，所以只显示与复制位置，不会让编辑器跳到那一行。
 
 ### 验证
 
-- 单测 42/42
-- 打包检查通过（18 个文件，含 locale）
-- 宿主集成 1/1
+- 单测 48/48
+- 宿主/浏览器检查 5/5
+- 真机浏览器断言 43/43（2 项跳过：web 实例没有系统关联查询、页面没有打开会话，这两条由单测与宿主检查覆盖）
+- 18 文件打包白名单与隔离安装通过
 
 安装：
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
+dsh plugin --profile desktop add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
 ```

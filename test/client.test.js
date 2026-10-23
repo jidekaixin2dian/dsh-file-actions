@@ -160,7 +160,7 @@ test('a text file gets open, open-with, reveal, copy and save-as rows', () => {
   assert.match(model.meta, /2\.0 KB/)
 
   const ids = model.sections.flat().map((item) => item.id)
-  assert.equal(ids.join(','), 'open,editor,openWith,reveal,copyPath,copyRelPath,copyContents,saveAs')
+  assert.equal(ids.join(','), 'open,editor,openWith,reveal,copyPath,copyRelPath,copyFileName,copyContents,saveAs')
 
   const openWith = model.sections.flat().find((item) => item.id === 'openWith')
   assert.equal(openWith.children.length, 2)
@@ -567,4 +567,41 @@ test('bridge distinguishes empty applications, query errors, missing files and m
   same(await absent.probe('s', '/a'), { error: 'unavailable' })
   const failed = api.createBridge({ remote: { session: { workspacePathApplications: async () => ({ ok: false }) } } })
   same(await failed.applications('/a'), { state: 'failed', apps: [] })
+})
+
+// A reference like `src/app.ts:42:7` names a line; the menu shows and copies it.
+test('a located reference shows its line and copies the reference verbatim', () => {
+  const located = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\src\\app.ts', displayPath: 'src/app.ts', isDir: false, apps: [], bytes: 2048,
+    cwd: 'D:\\repo', t: zh, location: { line: 42, column: 7 }, reference: 'src/app.ts:42:7',
+  })
+  const ids = located.sections.flat().map((item) => item.id)
+  assert.equal(ids.includes('copyReference'), true)
+  assert.equal(ids.includes('copyFileName'), true)
+  assert.match(located.meta, /第 42 行/)
+  assert.equal(located.meta.split(' · ')[0], '第 42 行')
+
+  const plain = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\src\\app.ts', displayPath: 'src/app.ts', isDir: false, apps: [], bytes: 2048,
+    cwd: 'D:\\repo', t: zh,
+  })
+  const plainIds = plain.sections.flat().map((item) => item.id)
+  assert.equal(plainIds.includes('copyReference'), false)
+  assert.doesNotMatch(plain.meta, /行/)
+
+  assert.equal(api.formatLocation({ line: 42 }, zh), '第 42 行')
+  assert.equal(api.formatLocation({ line: 42, endLine: 48 }, zh), '第 42–48 行')
+  assert.equal(api.formatLocation({ line: 42, endLine: 42 }, zh), '第 42 行')
+  assert.equal(api.formatLocation({}, zh), '')
+  assert.equal(api.formatLocation({ line: 42 }, en), 'line 42')
+  assert.equal(api.formatLocation({ line: 42, endLine: 48 }, en), 'lines 42–48')
+})
+
+test('a link with visible text can be copied as Markdown', () => {
+  const withText = api.buildLinkMenuModel({ url: 'https://github.com/x/y', text: 'v0.1.11', t: zh })
+  const ids = withText.sections.flat().map((item) => item.id)
+  assert.equal(ids.join(','), 'openLink,copyLink,copyLinkText,copyMarkdown')
+
+  const withoutText = api.buildLinkMenuModel({ url: 'https://github.com/x/y', text: '   ', t: zh })
+  assert.equal(withoutText.sections.flat().some((item) => item.id === 'copyMarkdown'), false)
 })

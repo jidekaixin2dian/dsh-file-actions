@@ -51,12 +51,12 @@ The rows follow the file type:
 
 | File | What you get |
 |---|---|
-| Code, text, config, subtitles | open, open in editor, open with, reveal, copy path, copy relative path, copy contents, save as |
+| Code, text, config, subtitles | open, open in editor, open with, reveal, copy path, copy relative path, copy file name, copy contents, save as |
 | Markdown, HTML, SVG, PDF, images | the same plus *Open in browser*; images and SVG also show a thumbnail |
 | Video, audio | open, open with, play in browser (mp4 / mov / webm, mp3 / wav / flac …), save as |
 | Office, archives, design files, 3D, disk images, binaries | open, open with, reveal, copy path, save as |
 | Folders | open folder, reveal, copy path, copy relative path |
-| Web links | open link, copy link, copy link text |
+| Web links | open link, copy link, copy link text, copy as Markdown |
 
 *Open with* keeps every registered application, ordered by preferred application, system default, editors, then other applications. A search box appears above seven entries.
 
