@@ -3,7 +3,9 @@
 File operations use the host's existing Session and WorkspaceFiles remotes. The
 plugin adds no command execution endpoint or filesystem permissions. File reads
 can include paths outside a workspace when the host's composed filesystem permits
-them; the workspace label is not a containment guarantee.
+them; the workspace label is not a containment guarantee. Copying the contents of
+a file outside the session workspace requires an explicit confirmation, because
+chat text can plant absolute paths; a declined copy reads no bytes.
 
 Browser previews run in a sandboxed iframe with an opaque origin. Scripts and
 forms can run, but file content cannot access the enclosing DSH document, its
