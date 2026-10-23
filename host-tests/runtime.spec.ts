@@ -32,6 +32,9 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
         res.setHeader('set-cookie', 'fixture=synthetic; SameSite=Strict')
         res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body>
           <button id="note" data-file-actions-path="note.txt">note.txt</button>
+          <span id="title" title=${JSON.stringify(path.join(host.workspace, 'note.txt'))}>note.txt</span>
+          <a id="anchor" href="#" title=${JSON.stringify(path.join(host.workspace, 'note.txt'))}>note.txt</a>
+          <code id="text">note.txt</code>
           <a id="resource" href="dsh-resource://file/session/other/note.txt"><span title="wrong.txt">note.txt</span></a>
           <script>window.__ModuleLoader__ = { load(def) { window.plugin = def.factory() } };</script>
           <script>const factory = "unrelated plugin";</script><script src="/client.js"></script><script>
@@ -85,6 +88,17 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     await expect.poll(() => calls.some(call => call.op === 'stat' && call.id === 'other')).toBe(true)
     await expect.poll(() => page.locator('[data-dfa-menu]').count()).toBe(1)
     await page.keyboard.press('Escape')
+
+    // Real Host validation warms ambiguous title/text references before the
+    // synchronous contextmenu handler takes over the native event.
+    for (const selector of ['#title', '#anchor', '#text']) {
+      await page.locator(selector).hover()
+      await expect.poll(() => page.locator(selector).evaluate(el => !el.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true, cancelable: true }),
+      ))).toBe(true)
+      await expect.poll(() => page.locator('.dfa-name').textContent()).toBe('note.txt')
+      await page.keyboard.press('Escape')
+    }
 
     // The actual action creates a popup, reads from the real Host and installs
     // a sandboxed preview; file scripts run but cannot reach DSH DOM/cookies.

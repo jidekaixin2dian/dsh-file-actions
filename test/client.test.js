@@ -164,8 +164,8 @@ test('a text file gets open, open-with, reveal, copy and save-as rows', () => {
 
   const openWith = model.sections.flat().find((item) => item.id === 'openWith')
   assert.equal(openWith.children.length, 2)
-  assert.equal(openWith.children[1].checked, true)
-  assert.equal(openWith.children[0].label, 'Visual Studio Code')
+  assert.equal(openWith.children[0].checked, true)
+  assert.equal(openWith.children[0].label, 'Notepad')
 })
 
 test('an image drops copy-contents but keeps the browser preview', () => {
@@ -518,4 +518,53 @@ test('linkFromHref only accepts http(s)', () => {
   assert.equal(api.linkFromHref('file:///C:/a.ts'), '')
   assert.equal(api.linkFromHref('/local/path'), '')
   assert.equal(api.linkFromHref(''), '')
+})
+
+test('application ordering keeps every unique association and puts explicit preference first', () => {
+  const apps = [{ id: 'media', name: 'Player' }, { id: 'editor', name: 'Visual Studio Code' },
+    { id: 'default', name: 'Notepad', default: true }, { id: 'media', name: 'duplicate' }, { id: 'other', name: 'Other' }]
+  same(api.orderApplications(apps, 'media').map(app => app.id), ['media', 'default', 'editor', 'other'])
+  const model = api.buildMenuModel({ absolutePath: '/repo/a.json', displayPath: 'a.json', apps,
+    preferredId: 'media', appsState: 'ready', t: en })
+  assert.equal(model.sections.flat().find(row => row.id === 'editor').appId, 'media')
+  assert.equal(model.sections.flat().find(row => row.id === 'openWith').children[0].preferred, true)
+})
+
+test('association loading, empty result and query failure have stable slots and distinct feedback', () => {
+  const model = state => api.buildMenuModel({ absolutePath: '/repo/a.txt', apps: [], appsState: state, t: en })
+  const rows = state => model(state).sections.flat()
+  same(rows('loading').map(row => row.id), rows('ready').map(row => row.id))
+  same(rows('loading').map(row => row.id), rows('failed').map(row => row.id))
+  assert.equal(rows('loading').find(row => row.id === 'editor').label, en.appsLoading)
+  assert.equal(rows('ready').find(row => row.id === 'openWith').label, en.appsEmpty)
+  const failure = rows('failed').find(row => row.id === 'openWith')
+  assert.equal(failure.action, 'retryApps')
+  assert.equal(failure.disabled, false)
+  assert.equal(failure.keepOpen, true)
+})
+
+test('preferences persist by file type and report storage failure without claiming success', () => {
+  const map = new Map()
+  const storage = { getItem: key => map.get(key), setItem: (key, value) => map.set(key, value) }
+  const prefs = api.applicationPreferences(storage)
+  assert.equal(prefs.set('/repo/a.JSON', 'editor'), true)
+  assert.equal(api.applicationPreferences(storage).get('/another/b.json'), 'editor')
+  assert.equal(prefs.get('/repo/a.txt'), '')
+  assert.equal(prefs.set('/repo/a.json', ''), true)
+  assert.equal(prefs.get('/repo/a.json'), '')
+  assert.equal(api.applicationPreferences({ getItem() { throw Error('denied') }, setItem() { throw Error('denied') } }).set('a.json', 'editor'), false)
+  assert.equal(api.applicationPreferences(undefined).get('a.json'), '')
+})
+
+test('bridge distinguishes empty applications, query errors, missing files and missing services', async () => {
+  const bridge = api.createBridge({ remote: { session: { workspacePathApplications: async () => ({ ok: true, value: [] }) },
+    workspaceFiles: { stat: async () => ({ ok: false, error: { code: 'workspace-file/not-found' } }),
+      list: async () => ({ ok: false }) } } })
+  same(await bridge.applications('/a'), { state: 'ready', apps: [] })
+  same(await bridge.probe('s', '/a'), { error: 'notFound' })
+  const absent = api.createBridge({ remote: {} })
+  same(await absent.applications('/a'), { state: 'failed', apps: [] })
+  same(await absent.probe('s', '/a'), { error: 'unavailable' })
+  const failed = api.createBridge({ remote: { session: { workspacePathApplications: async () => ({ ok: false }) } } })
+  same(await failed.applications('/a'), { state: 'failed', apps: [] })
 })

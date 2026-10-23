@@ -2,11 +2,9 @@
 
 [中文](README.md)
 
-`main` contains **0.1.6 unreleased** fixes. Release 0.1.5 and earlier do not isolate active HTML/SVG previews from DSH. Use the corrected source below until a new archive is published; see [Security](SECURITY.md) and [Changelog](CHANGELOG.md).
+**0.1.10** improves file verification feedback, preferred applications, menu stability and font scaling. See [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) and the [Changelog](CHANGELOG.md).
 
-Right-click a file name in the DSH chat to open it, open it with another application, reveal it in the file manager, copy its path or contents, or save it.
-
-Aligned with the file-reference menu of Codex's desktop app. Codex's UI is not open source, so this is built to behave the same way rather than ported from it.
+Right-click files and links to open, reveal, copy or save them.
 
 ![File context menu](assets/preview-dark.png)
 
@@ -15,10 +13,10 @@ Aligned with the file-reference menu of Codex's desktop app. Codex's UI is not o
 Quit the DSH desktop app completely, then run:
 
 ```powershell
-dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions
+dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
 ```
 
-Reopen DSH and it is active. Not published to npm. The command installs current GitHub source; historical tarballs remain on the Release page.
+Reopen DSH to activate it. Not published to npm; the command installs the latest Release archive. To follow source instead, use `dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions`.
 
 To remove it: dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions, then reopen DSH.
 
@@ -46,7 +44,11 @@ The rows follow the file type:
 | Folders | open folder, reveal, copy path, copy relative path |
 | Web links | open link, copy link, copy link text |
 
-*Open with* lists the applications registered on your system, with their real icons; once there are more than seven, a search box appears.
+*Open with* keeps every registered application, ordered by preferred application, system default, editors, then other applications. A search box appears above seven entries.
+
+Click ☆ beside an application to prefer it for that file type; click ★ to clear it. Keyboard users can select an application and press `Shift+Enter`. Preferences stay in this browser and do not change OS associations. An unavailable preferred application falls back to an available editor.
+
+Explicit file references show progress and a retryable error when verification fails. Guessed text paths are verified on hover or focus; until verified, they retain the native menu. Hold `Shift` while right-clicking to keep the native menu anywhere.
 
 ![Search applications](assets/preview-search.png)
 
@@ -64,8 +66,9 @@ Readable on a wallpaper with a liquid-glass theme — the menu paints a near-opa
 
 ## Limitations
 
-- Not a native menu, so it does not follow the system's font scaling.
-- *Open with* only lists applications the system has registered for the extension.
+- Not a native menu. Text follows the page root font size and page zoom, not the operating system text-size setting directly.
+- *Open with* only lists registered applications. Preferences do not change OS defaults.
+- Opening an editor currently opens the file only; the pinned Host API does not accept line or column positions.
 - Save as uses the browser's download dialog with the original file name.
 - Copy contents is capped at 2 MiB. Save as and browser previews use the host complete-file cap (32 MiB by default on DSH 0.2.1-rc.2); larger files must be opened externally.
 - HTML/SVG previews retain scripts in an opaque-origin sandbox. They cannot access the DSH page or cookies. Relative sibling assets and actions that require top navigation or same-origin storage may not work.
@@ -73,13 +76,13 @@ Readable on a wallpaper with a liquid-glass theme — the menu paints a near-opa
 
 ## FAQ
 
-**Nothing happens on right-click?** The text under the cursor has to match a real file or a web link. Plain prose and editable fields keep the system menu.
+**Why does the native menu appear?** Plain prose and editable fields keep it. Guessed file paths are verified on hover or focus; cold or failed guesses retain the native menu. Explicit file references show a reason and a retry action on failure.
 
-**No *Open with* row?** The system has no registered handler for that extension, or the association query has not answered yet — the menu appears first and the application rows drop in afterwards.
+**Is *Open with* unavailable?** Loading, empty results and failed queries are shown separately. Click a failed query to retry.
 
 **Nothing opens in the browser?** The popup may have been blocked; allow popups and retry.
 
-**The editor it picked is not the one I want?** It takes the first recognised editor among the system associations; the rest are in *Open with*.
+**How do I choose an application?** Click ☆ in *Open with*. Without a preference, the shortcut uses a recognised editor. *Open file* continues to use the system default.
 
 ## Development and verification
 
@@ -95,7 +98,7 @@ npm run pack:check
 
 The pinned host is DSH **0.2.1-rc.2** (`687f282e8625c6b8d11ff58211a90524be2e4317`). `DFA_HOST` can reuse a clean checkout at that exact commit. Windows uses headless Edge; Linux needs `npx --no-install playwright install --with-deps chromium`. CI runs both systems. No runtime dependencies or build step are added to the plugin.
 
-The browser suite uses the actual client bundle and real WorkspaceFiles over synthetic references. It checks Session identity, sandboxed script isolation, a real 3 MiB download and unload behavior. This is not a complete Desktop or OS application-launch test. Optional full-Web drivers and historical assertion counts are documented in [test-e2e](test-e2e/README.md).
+The browser suite uses the actual client bundle and real WorkspaceFiles over synthetic references. It checks Session identity, sandboxed script isolation, a real 3 MiB download and unload behavior. A separate browser suite uses deterministic Remote responses for native-menu fallback, preferences, asynchronous stability, search and large text. This is not a complete Desktop or OS application-launch test. Optional full-Web drivers and historical assertion counts are documented in [test-e2e](test-e2e/README.md).
 
 ## Releases
 

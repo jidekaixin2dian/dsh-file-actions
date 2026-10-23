@@ -11,8 +11,13 @@ cookies, or its opener. Relative resources beside a file are not served by a
 Blob URL. Opening the same file externally delegates trust to the chosen app.
 
 Versions through 0.1.5 opened active HTML/SVG directly at the DSH Blob origin.
-Use the corrected `main` source until a release includes the preview isolation
-fix. Existing release assets have not been replaced.
+Preview isolation is included in release 0.1.7 and later. Historical release
+assets have not been replaced.
+
+Preferred applications are stored locally in the browser, by extension. Only
+application IDs are saved; a preference must match a currently returned Host
+association before it can be used. Preferences neither execute commands nor
+change OS file associations.
 
 Automated host tests serve only synthetic files on loopback. Optional full-Web
 drivers require a separate `DFA_HOME`; they do not copy personal profiles, and
