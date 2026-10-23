@@ -1,8 +1,10 @@
 name: npm publish
 
-# Manual publish with provenance: run from Actions after bumping the version.
-# Requires the NPM_TOKEN repo secret (granular token, publish rights for this
-# package). id-token: write lets npm attach the OIDC provenance statement.
+# Manual publish with provenance via npm trusted publishing (OIDC): the
+# GitHub Actions run identity authenticates without a token or OTP. Requires
+# the package's Trusted Publisher entry on npmjs.com to match this repository
+# and workflow filename. id-token: write lets npm attach the provenance
+# statement.
 on:
   workflow_dispatch:
 
@@ -25,5 +27,3 @@ jobs:
       - run: npm ci --ignore-scripts --legacy-peer-deps
       - run: npm test
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
