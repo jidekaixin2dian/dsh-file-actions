@@ -146,15 +146,17 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     await expect.poll(() => !!release).toBe(true)
     await page.evaluate(() => (window as any).cleanup())
     release!(); release = undefined
-    await page.waitForFunction(() => (window as any).__dfaDebug?.stage === 'probe')
+    // The held fixture stat proves the disposed install had reached its probe
+    // before the continuation could reconsider the menu.
+    expect(calls.some(call => call.op === 'stat' && path.basename(call.path) === 'note.txt')).toBe(true)
     // Flush the fixture request and client continuations, then inspect the DOM.
     await page.evaluate(async () => { await fetch('/'); await new Promise(resolve => setTimeout(resolve, 50)) })
     expect(await page.locator('[data-dfa-menu]').count()).toBe(0)
     expect(errors).toEqual([])
     await page.screenshot({ path: path.join(project, 'work/results/browser.png') })
   } catch (error) {
-    const diagnostics = await page?.evaluate(() => ({ debug: (window as any).__dfaDebug,
-      urls: (window as any).urls, focused: document.hasFocus(), menu: document.querySelector('[data-dfa-menu]')?.outerHTML }))
+    const diagnostics = await page?.evaluate(() => ({ urls: (window as any).urls,
+      focused: document.hasFocus(), menu: document.querySelector('[data-dfa-menu]')?.outerHTML }))
     fs.writeFileSync(path.join(project, 'work/results/failure.json'), JSON.stringify({ diagnostics, calls, fixtureErrors }, null, 2))
     await page?.screenshot({ path: path.join(project, 'work/results/failure.png') }).catch(() => {})
     throw error
