@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
-export const sha = '687f282e8625c6b8d11ff58211a90524be2e4317'
-export const tag = 'dsh-v0.2.1-rc.2'
+export const sha = '1f81c047fc48fa190a683e469daa699857e9afe8'
+export const tag = 'dsh-v0.2.1-rc.3'
 export const directory = resolve(process.env.DFA_HOST || 'work/host')
 export function run(program, args, cwd = process.cwd()) {
   const result = spawnSync(program, args, { cwd, stdio: 'inherit', env: { ...process.env, CI: 'true' } })

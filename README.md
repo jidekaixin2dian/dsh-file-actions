@@ -117,7 +117,7 @@ npm run test:host
 npm run pack:check
 ```
 
-固定宿主为 DSH **0.2.1-rc.2**（`687f282e8625c6b8d11ff58211a90524be2e4317`）。`DFA_HOST` 可复用相同 commit 的干净 checkout。Windows 使用 headless Edge；Linux 先运行 `npx --no-install playwright install --with-deps chromium`。CI 同时覆盖两种系统。插件仍无运行时依赖、无构建步骤。
+固定宿主为 DSH **0.2.1-rc.3**（`1f81c047fc48fa190a683e469daa699857e9afe8`）。`DFA_HOST` 可复用相同 commit 的干净 checkout。Windows 使用 headless Edge；Linux 先运行 `npx --no-install playwright install --with-deps chromium`。CI 同时覆盖两种系统。插件仍无运行时依赖、无构建步骤。
 
 浏览器套件把实际 client bundle 与真实 WorkspaceFiles 接到合成文件引用上，检查会话身份、预览脚本隔离、真实 3 MiB 下载及卸载行为；另用确定性 Remote 响应检查右键回退、首选应用、异步菜单稳定性、搜索和大字号。这不是完整 Desktop 或外部应用启动验收。可选完整 Web 驱动和历史断言计数见 [test-e2e](test-e2e/README.md)。
 
