@@ -17,7 +17,10 @@ async function menuFixture() {
       <div class="controls"><button id="note" data-file-actions-path="note.txt">note.txt</button>
       <button id="image" data-file-actions-path="image.svg">image.svg</button>
       <button id="missing" data-file-actions-path="missing.txt">missing.txt</button>
-      <code id="guess" tabindex="0">guess.txt</code><code id="prose">missing-prose.txt</code>
+      <code id="guess" tabindex="0">guess.txt</code><span id="prose">missing-prose.txt</span>
+      <span id="plain" tabindex="0">plain.txt</span>
+      <code id="reference" tabindex="0">note.txt</code>
+      <pre><code id="fenced">note.txt</code></pre>
       <a id="link" href="https://example.com/docs">Documentation</a></div>
       <script>window.__ModuleLoader__={load(def){window.plugin=def.factory()}};</script>
       <script src="/client.js"></script><script>
@@ -54,13 +57,24 @@ it('cold guesses and Shift preserve the native event; explicit missing files off
   const fixture = await menuFixture()
   const { page, errors } = fixture
   try {
-    // Dispatch without pointerover to exercise the genuinely cold path.
-    const cold = await page.locator('#guess').evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))
+    // Plain text is still a guess: a cold right-click keeps the native menu, and the
+    // hover warms it so the next click is taken over.
+    const cold = await page.locator('#plain').evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))
     expect(cold).toBe(false)
-    await expect.poll(() => page.evaluate(() => (window as any).calls.paths.includes('/workspace/guess.txt'))).toBe(true)
-    await page.locator('#guess').click({ button: 'right' })
+    await expect.poll(() => page.evaluate(() => (window as any).calls.paths.includes('/workspace/plain.txt'))).toBe(true)
+    await page.locator('#plain').click({ button: 'right' })
     await browserExpect(page.locator('[data-dfa-item="open"]')).toBeVisible()
     await page.keyboard.press('Escape')
+    // Inline code is a deliberate reference: a cold right-click opens the menu
+    // immediately, without a hover first.
+    const inlineCold = await page.locator('#reference').evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))
+    expect(inlineCold).toBe(true)
+    await browserExpect(page.locator('[data-dfa-item="open"]')).toBeVisible()
+    await page.keyboard.press('Escape')
+    // Code inside a fenced block is content, not a reference: it stays a guess.
+    const fenced = await page.locator('#fenced').evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))
+    expect(fenced).toBe(false)
+    expect(await page.locator('[data-dfa-menu]').count()).toBe(0)
     await page.locator('#prose').hover()
     await expect.poll(() => page.evaluate(() => (window as any).calls.paths.includes('/workspace/missing-prose.txt'))).toBe(true)
     const invalid = await page.locator('#prose').evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))
