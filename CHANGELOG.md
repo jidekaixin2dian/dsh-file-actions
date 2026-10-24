@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 显式声明支持的宿主范围：`engines.dsh >=0.2.1-rc.2`，CI 持续验证 0.2.1-rc.2 与 0.2.1-rc.3 双版本。
 - 宿主回归 pin 升级到 DSH 0.2.1-rc.3（`1f81c047`）：rc.2 → rc.3 对本插件使用的
   Session / WorkspaceFiles Remote 无任何源码变化，宿主套件双系统复验通过。
   插件代码不变，无需发版。
