@@ -10,7 +10,7 @@ Right-click files and links to open, reveal, copy or save them.
 
 ## Install
 
-Quit the DSH desktop app completely, then run:
+Requires DSH `>=0.2.1-rc.2` (CI continuously verifies both 0.2.1-rc.2 and 0.2.1-rc.3) and Node >=24. Quit the DSH desktop app completely, then run:
 
 ```powershell
 dsh plugin --profile desktop add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org

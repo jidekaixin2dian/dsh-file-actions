@@ -10,7 +10,7 @@
 
 ## 安装
 
-先完全退出 DSH 桌面端，再执行：
+需要 DSH `>=0.2.1-rc.2`（CI 持续验证 0.2.1-rc.2 与 0.2.1-rc.3 双版本）与 Node >=24。先完全退出 DSH 桌面端，再执行：
 
 ```powershell
 dsh plugin --profile desktop add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
