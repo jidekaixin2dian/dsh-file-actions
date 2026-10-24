@@ -114,7 +114,7 @@ npm run test:host
 npm run pack:check
 ```
 
-The pinned host is DSH **0.2.1-rc.2** (`687f282e8625c6b8d11ff58211a90524be2e4317`). `DFA_HOST` can reuse a clean checkout at that exact commit. Windows uses headless Edge; Linux needs `npx --no-install playwright install --with-deps chromium`. CI runs both systems. No runtime dependencies or build step are added to the plugin.
+The pinned host is DSH **0.2.1-rc.3** (`1f81c047fc48fa190a683e469daa699857e9afe8`). `DFA_HOST` can reuse a clean checkout at that exact commit. Windows uses headless Edge; Linux needs `npx --no-install playwright install --with-deps chromium`. CI runs both systems. No runtime dependencies or build step are added to the plugin.
 
 The browser suite uses the actual client bundle and real WorkspaceFiles over synthetic references. It checks Session identity, sandboxed script isolation, a real 3 MiB download and unload behavior. A separate browser suite uses deterministic Remote responses for native-menu fallback, preferences, asynchronous stability, search and large text. This is not a complete Desktop or OS application-launch test. Optional full-Web drivers and historical assertion counts are documented in [test-e2e](test-e2e/README.md).
 
