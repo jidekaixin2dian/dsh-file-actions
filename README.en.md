@@ -58,6 +58,10 @@ The rows follow the file type:
 | Folders | open folder, reveal, copy path, copy relative path |
 | Web links | open link, copy link, copy link text, copy as Markdown |
 
+The link menu:
+
+![Link menu](assets/preview-link.png)
+
 *Open with* keeps every registered application, ordered by preferred application, system default, editors, then other applications. A search box appears above seven entries.
 
 Click ☆ beside an application to prefer it for that file type; click ★ to clear it. Keyboard users can select an application and press `Shift+Enter`. Preferences stay in this browser and do not change OS associations. An unavailable preferred application falls back to an available editor.

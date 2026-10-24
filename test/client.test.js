@@ -631,3 +631,32 @@ test('a link with visible text can be copied as Markdown', () => {
   const withoutText = api.buildLinkMenuModel({ url: 'https://github.com/x/y', text: '   ', t: zh })
   assert.equal(withoutText.sections.flat().some((item) => item.id === 'copyMarkdown'), false)
 })
+// Every glyph a menu asks for must exist; a typo would render the literal string
+// "undefined" inside the SVG and silently blank the row icon.
+test('every menu row names an icon that exists', () => {
+  const fileMenu = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\src\\a.ts', displayPath: 'src/a.ts', isDir: false, bytes: 10,
+    apps: [{ id: 'vscode', name: 'VS Code', default: true, icon: null }], appsState: 'ready',
+    cwd: 'D:\\repo', t: zh, location: { line: 42 }, reference: 'src/a.ts:42',
+  })
+  const linkMenu = api.buildLinkMenuModel({ url: 'https://github.com/x/y', text: 'v0.1.12', t: zh })
+  const names = [...fileMenu.sections, ...linkMenu.sections]
+    .flat()
+    .flatMap((item) => [item.icon, ...(item.children || []).map((child) => child.icon)])
+    .filter(Boolean)
+  assert.ok(names.length >= 10, `expected a full menu, got ${names.join(',')}`)
+  for (const name of names) {
+    assert.equal(typeof api.ICON_PATHS[name], 'string', `missing icon: ${name}`)
+    assert.match(api.ICON_PATHS[name], /^<path|<rect|<circle/, `empty icon: ${name}`)
+  }
+  const svg = api.iconSvg('nope')
+  assert.doesNotMatch(svg, /undefined/)
+  assert.match(svg, /viewBox="0 0 24 24"/)
+  assert.equal(api.iconSvg('link'), svg.replace(/<path[^>]*\/><path[^>]*\/>/, api.ICON_PATHS.link) === svg ? svg : api.iconSvg('link'))
+})
+
+test('the link menu uses distinct, meaningful glyphs', () => {
+  const model = api.buildLinkMenuModel({ url: 'https://github.com/x/y', text: 'v0.1.12', t: zh })
+  const icons = model.sections.flat().map((item) => `${item.id}:${item.icon}`)
+  assert.equal(icons.join(','), 'openLink:external,copyLink:link,copyLinkText:text,copyMarkdown:markdown')
+})
