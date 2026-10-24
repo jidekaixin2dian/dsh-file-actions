@@ -71,8 +71,19 @@ it('cold guesses and Shift preserve the native event; explicit missing files off
     await page.locator('[data-dfa-item="retry"]').click()
     await browserExpect(page.locator('[data-dfa-item="open"]')).toBeVisible()
     await page.keyboard.press('Escape')
+    // Shift lets the page answer first. When nobody does, the plugin falls back to
+    // its own menu: the Electron shell ships no native menu, so silence would read
+    // as a broken click.
     const shifted = await page.locator('#link').evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey: true })))
-    expect(shifted).toBe(false)
+    expect(shifted).toBe(true)
+    await browserExpect(page.locator('[data-dfa-menu]')).toBeVisible()
+    await page.keyboard.press('Escape')
+    // A page that does handle the event keeps it: the fallback must stay quiet.
+    await page.locator('#link').evaluate(el => {
+      el.addEventListener('contextmenu', (event) => event.preventDefault(), { once: true })
+    })
+    const handled = await page.locator('#link').evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey: true })))
+    expect(handled).toBe(true)
     expect(await page.locator('[data-dfa-menu]').count()).toBe(0)
     expect(errors).toEqual([])
   } finally { await fixture.dispose() }

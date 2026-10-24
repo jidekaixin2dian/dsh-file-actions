@@ -518,6 +518,20 @@ async function main() {
   check('copy reference reports success', /引用|reference/.test(refCopy.toast), refCopy.toast)
   await closeMenu()
 
+  // Shift+right-click lets the page answer first. DSH ships no native menu, so the
+  // fallback must open ours instead of leaving the click dead.
+  await warm('[data-test="title"] span')
+  await sleep(600)
+  await closeMenu()
+  await evaluate(`(() => {
+    const el = document.querySelector('[data-test="title"] span')
+    const rect = el.getBoundingClientRect()
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey: true, button: 2, clientX: rect.left + 10, clientY: rect.top + 8 }))
+    return true
+  })()`)
+  const shiftMenu = await waitMenu(4000)
+  check('Shift+right-click falls back to the menu when nothing else answers', Boolean(shiftMenu), shiftMenu && shiftMenu.title)
+  await closeMenu()
   // Shift+F10 opens the same menu from the keyboard, with the key hints. The
   // keyboard path applies the same verify-before-takeover rule, so warm it first.
   await warm('[data-test="kbd"]')

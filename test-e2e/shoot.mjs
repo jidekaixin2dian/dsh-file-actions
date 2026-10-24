@@ -121,13 +121,28 @@ await evaluate(`(() => {
   root.innerHTML = [
     '<div data-test="title"><span title=${JSON.stringify(project + '/package.json')}>package.json</span></div>',
     '<div data-test="attr" data-files-path=${JSON.stringify(project + '/icon.svg')}>icon.svg</div>',
-    '<div data-test="img" data-files-path=${JSON.stringify(project + '/assets/menu-light.png')}>menu-light.png</div>',
+    '<div data-test="img" data-files-path=${JSON.stringify(project + '/assets/preview-light.png')}>preview-light.png</div>',
+    '<div data-test="link"><a href="https://github.com/jidekaixin2dian/dsh-file-actions/releases/tag/v0.1.12">v0.1.12</a></div>',
   ].join('')
   document.body.appendChild(root)
   return true
 })()`)
 
-const fire = async (selector, dx) => evaluate(`(() => {
+// A guessed reference is verified on hover before it may take over the click, so
+// the driver warms it first — the same thing a moving pointer does.
+const warm = async (selector, dx) => evaluate(`(() => {
+  const el = document.querySelector(${JSON.stringify(selector)})
+  const rect = el.getBoundingClientRect()
+  const x = Math.round(rect.left + ${dx || 10})
+  const y = Math.round(rect.top + rect.height / 2)
+  el.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, clientX: x, clientY: y }))
+  return [x, y]
+})()`)
+
+const fire = async (selector, dx) => {
+  await warm(selector, dx)
+  await sleep(600)
+  return evaluate(`(() => {
   const el = document.querySelector(${JSON.stringify(selector)})
   const rect = el.getBoundingClientRect()
   const x = Math.round(rect.left + ${dx || 10})
@@ -135,6 +150,7 @@ const fire = async (selector, dx) => evaluate(`(() => {
   el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 2 }))
   return [x, y]
 })()`)
+}
 
 await fire('[data-test="title"] span', 10)
 // Wait for the slow OS association rows so the screenshot shows the real menu.
@@ -167,6 +183,15 @@ const opened = await evaluate(`(async () => {
 })()`)
 console.log('menu after fire:', JSON.stringify(opened))
 await shoot('menu-text-dark.png')
+
+// The link menu uses a different glyph set than the file menu.
+await evaluate(`(() => { document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return true })()`)
+await sleep(250)
+await fire('[data-test="link"] a', 10)
+await sleep(500)
+await shoot('menu-link-dark.png')
+await evaluate(`(() => { document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return true })()`)
+await sleep(250)
 
 // Simulate the liquid-glass + wallpaper theme: a bright gradient behind the menu.
 await evaluate(`(() => {
