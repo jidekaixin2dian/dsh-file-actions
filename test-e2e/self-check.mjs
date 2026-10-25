@@ -230,6 +230,7 @@ async function main() {
       loc: menu.querySelector('.dfa-loc')?.textContent || '',
       foot: menu.querySelector('.dfa-foot')?.textContent || '',
       items: [...menu.querySelectorAll('[data-dfa-item]')].map((node) => node.getAttribute('data-dfa-item')),
+      disabledItems: [...menu.querySelectorAll('[data-dfa-item][aria-disabled="true"]')].map((node) => node.getAttribute('data-dfa-item')),
       labels: [...menu.querySelectorAll('.dfa-label')].map((node) => node.textContent),
     }
   })()`)
@@ -289,7 +290,7 @@ async function main() {
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
       const menu = await readMenu()
-      if (menu && ids.every((id) => menu.items.includes(id))) return menu
+      if (menu && ids.every((id) => menu.items.includes(id) && !menu.disabledItems.includes(id))) return menu
       await sleep(250)
     }
     return null
