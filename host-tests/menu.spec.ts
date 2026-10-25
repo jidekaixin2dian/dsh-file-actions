@@ -16,12 +16,14 @@ async function menuFixture() {
       .controls{display:flex;flex-wrap:wrap;max-width:500px}</style></head><body>
       <div class="controls"><button id="note" data-file-actions-path="note.txt">note.txt</button>
       <button id="image" data-file-actions-path="image.svg">image.svg</button>
+      <button id="image2" data-file-actions-path="image2.svg">image2.svg</button>
       <button id="missing" data-file-actions-path="missing.txt">missing.txt</button>
       <code id="guess" tabindex="0">guess.txt</code><span id="prose">missing-prose.txt</span>
       <span id="plain" tabindex="0">plain.txt</span>
       <code id="reference" tabindex="0">note.txt</code>
       <pre><code id="fenced">note.txt</code></pre>
-      <a id="link" href="https://example.com/docs">Documentation</a></div>
+      <a id="link" href="https://example.com/docs">Documentation</a>
+      <div id="tree-row" class="row" role="button" title="C:/workspace/note.txt">note.txt</div></div>
       <script>window.__ModuleLoader__={load(def){window.plugin=def.factory()}};</script>
       <script src="/client.js"></script><script>
       window.state={missing:true,apps:'ready',delayApps:false,delayThumb:false};
@@ -39,8 +41,11 @@ async function menuFixture() {
             return {ok:false,error:{code:'workspace-file/not-found'}};
           return {ok:true,value:{absolutePath:path,bytes:32,version:'v1'}}},
           list:async()=>({ok:false,error:{code:'workspace-file/not-found'}}),
-          readBytes:async()=>{if(state.delayThumb)await new Promise(r=>window.releaseThumb=r);
-            return {ok:true,value:{data:new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"/>'),eof:true}}}
+          readBytes:async(id,path)=>{if(state.delayThumb)await new Promise(r=>{const w=window;w.thumbWaiters??=[];
+              w.thumbWaiters.push(r);w.releaseThumb=()=>{w.thumbWaiters.splice(0).forEach(fn=>fn())}});
+            const marker=path.includes('image2')?'#00ff00':'#ff0000';
+            const svg='<svg xmlns="http://www.w3.org/2000/svg" width="40" height="24"><rect width="40" height="24" fill="'+marker+'"/></svg>';
+            return {ok:true,value:{data:new TextEncoder().encode(svg),eof:true}}}
         }}};plugin.apply(ctx);
       </script></body></html>`)
   })
@@ -103,13 +108,58 @@ it('cold guesses and Shift preserve the native event; explicit missing files off
   } finally { await fixture.dispose() }
 })
 
-it('late associations keep the hovered row in place; query failures can retry to an empty result', async () => {
+it('a file tree row whose tooltip is an absolute path opens the menu cold', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    // No hover: a file tree stores the absolute path in the row tooltip, so it is a
+    // real address and must not fall through to the browser's menu.
+    const fired = await page.locator('#tree-row').evaluate((el) => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 })
+      el.dispatchEvent(event)
+      return event.defaultPrevented
+    })
+    expect(fired).toBe(true)
+    await browserExpect(page.locator('[data-dfa-menu]')).toBeVisible()
+    await browserExpect(page.locator('.dfa-name')).toContainText('note.txt')
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+it('hover prefetches the association list and a second menu reuses it', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    // Hovering an explicit carrier starts the slow OS query before any click.
+    await page.locator('#note').hover()
+    await expect.poll(() => page.evaluate(() => (window as any).calls.apps)).toBeGreaterThan(0)
+    const afterHover = await page.evaluate(() => (window as any).calls.apps)
+
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    await browserExpect(page.locator('[data-dfa-menu="submenu"] [data-dfa-item="app:notepad"]')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+
+    // A second menu for the same extension reuses the cached answer.
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    await browserExpect(page.locator('[data-dfa-menu="submenu"] [data-dfa-item="app:notepad"]')).toBeVisible()
+    expect(await page.evaluate(() => (window as any).calls.apps)).toBe(afterHover)
+    await page.keyboard.press('Escape')
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+it('late associations keep the hovered row in place; a failed lookup leaves no dead row', async () => {
   const fixture = await menuFixture()
   const { page, errors } = fixture
   try {
     await page.evaluate(() => { (window as any).state.delayApps = true })
     await page.locator('#note').click({ button: 'right' })
-    await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Finding applications')
+    // Both rows hold their slots while the query runs, so the rows below do not jump
+    // when the answer lands. Neither row claims anything about the file type yet.
+    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toHaveAttribute('aria-disabled', 'true')
+    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toContainText('Open with')
+    await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Open in editor')
     await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)))
     const probesBeforeHover = await page.evaluate(() => (window as any).calls.stats)
     await page.locator('.dfa-name').hover()
@@ -119,6 +169,7 @@ it('late associations keep the hovered row in place; query failures can retry to
     const before = await reveal.boundingBox()
     await page.evaluate(() => (window as any).releaseApps())
     await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Visual Studio Code')
+    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toHaveAttribute('aria-disabled', 'false')
     const after = await reveal.boundingBox()
     expect(after!.y).toBe(before!.y)
     expect(after!.x).toBe(before!.x)
@@ -127,11 +178,17 @@ it('late associations keep the hovered row in place; query failures can retry to
     await page.reload()
     await page.evaluate(() => { (window as any).state.apps = 'failed' })
     await page.locator('#note').click({ button: 'right' })
-    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toContainText('lookup failed')
+    // The Host query throws as soon as one registered handler is broken, and no retry
+    // can fix that: both association rows disappear instead of dead-ending the menu.
+    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toHaveCount(0)
+    await browserExpect(page.locator('[data-dfa-item="editor"]')).toHaveCount(0)
+    await browserExpect(page.locator('[data-dfa-item="reveal"]')).toBeVisible()
+    await page.keyboard.press('Escape')
     await page.evaluate(() => { (window as any).state.apps = 'empty' })
-    await page.locator('[data-dfa-item="openWith"]').click()
-    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toContainText('No associated applications')
-    expect(await page.evaluate(() => (window as any).calls.apps)).toBe(2)
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toHaveCount(0)
+    // A failed answer is never cached: the next menu asks again.
+    expect(await page.evaluate(() => (window as any).calls.apps)).toBeGreaterThanOrEqual(2)
     expect(errors).toEqual([])
   } finally { await fixture.dispose() }
 })
@@ -160,6 +217,290 @@ it('preferred applications survive reload, open the selected handler, and clear 
     expect(errors).toEqual([])
     await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)))
     await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/results/menu-preference.png') })
+  } finally { await fixture.dispose() }
+})
+
+it('the open-with submenu clips its sticky header so the rounded corners survive', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    const submenu = page.locator('[data-dfa-menu="submenu"]')
+    await browserExpect(submenu).toBeVisible()
+    const probe = await page.evaluate(() => {
+      const menu = document.querySelector('[data-dfa-menu="submenu"]') as HTMLElement
+      const body = menu.querySelector('.dfa-body') as HTMLElement
+      const header = menu.querySelector('.dfa-subhead') as HTMLElement
+      const style = getComputedStyle(menu)
+      const headerStyle = getComputedStyle(header)
+      return {
+        overflow: style.overflow,
+        radius: parseFloat(style.borderTopLeftRadius),
+        headerPosition: headerStyle.position,
+        headerBackground: headerStyle.backgroundColor,
+        headerInsideBody: body.contains(header),
+        scrollTop: body.scrollTop,
+      }
+    })
+    expect(probe.radius).toBeGreaterThan(6)
+    // The header is sticky and opaque; only clipping to the rounded box keeps it from
+    // painting the top corners square until the scroll fade masks them.
+    expect(probe.headerPosition).toBe('sticky')
+    expect(probe.headerBackground).not.toBe('rgba(0, 0, 0, 0)')
+    expect(probe.headerInsideBody).toBe(true)
+    expect(probe.overflow).toBe('hidden')
+    expect(probe.scrollTop).toBe(0)
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('the open-with submenu stays glued to its row while the chat scrolls', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    // Give the page room to scroll and park the anchor mid-viewport.
+    await page.evaluate(() => {
+      document.body.insertAdjacentHTML('afterbegin', '<div id="spacer" style="height:600px"></div>')
+      window.scrollTo(0, 200)
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    await browserExpect(page.locator('[data-dfa-menu="submenu"]')).toBeVisible()
+    // Measure settled boxes: the entrance animation offsets the painted rect.
+    await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)))
+    const offsets = () => page.evaluate(() => {
+      const row = document.querySelector('#note')!.getBoundingClientRect()
+      const read = (selector: string) => {
+        const node = document.querySelector(selector) as HTMLElement | null
+        if (!node) return null
+        const rect = node.getBoundingClientRect()
+        return { dx: Math.round(rect.left - row.left), dy: Math.round(rect.top - row.top) }
+      }
+      return { menu: read('[data-dfa-menu="1"]'), sub: read('[data-dfa-menu="submenu"]') }
+    })
+
+    const before = await offsets()
+    expect(before.menu).not.toBeNull()
+    expect(before.sub).not.toBeNull()
+
+    // Scroll one wheel-sized step and wait for the follow frame to settle.
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      window.scrollBy(0, 120)
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    }))
+
+    const after = await offsets()
+    expect(after.sub).not.toBeNull()
+    // Pure translation with at most a rounding pixel: nothing drifts.
+    expect(Math.abs(after.menu!.dx - before.menu!.dx)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.menu!.dy - before.menu!.dy)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.sub!.dx - before.sub!.dx)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.sub!.dy - before.sub!.dy)).toBeLessThanOrEqual(1)
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('menu and submenu keep their size inside the viewport bounds and flip above a low anchor', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    // Park the anchor mid-viewport for the size check.
+    await page.evaluate(() => document.body.insertAdjacentHTML('afterbegin', '<div style="height:300px"></div>'))
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    await browserExpect(page.locator('[data-dfa-menu="submenu"]')).toBeVisible()
+    const sizes = await page.evaluate(() => {
+      const root = document.querySelector('[data-dfa-menu="1"]') as HTMLElement
+      const sub = document.querySelector('[data-dfa-menu="submenu"]') as HTMLElement
+      const note = document.querySelector('#note') as HTMLElement
+      const rootStyle = getComputedStyle(root)
+      const subStyle = getComputedStyle(sub)
+      const px = (value: string) => parseFloat(value)
+      const rect = root.getBoundingClientRect()
+      const noteRect = note.getBoundingClientRect()
+      const clickY = noteRect.top + noteRect.height / 2
+      return {
+        width: root.offsetWidth,
+        minWidth: px(rootStyle.minWidth),
+        maxWidth: px(rootStyle.maxWidth),
+        height: root.offsetHeight,
+        maxHeight: px(rootStyle.maxHeight),
+        subWidth: sub.offsetWidth,
+        subMinWidth: px(subStyle.minWidth),
+        subMaxWidth: px(subStyle.maxWidth),
+        subHeight: sub.offsetHeight,
+        subMaxHeight: px(subStyle.maxHeight),
+        viewportHeight: window.innerHeight,
+        viewportWidth: window.innerWidth,
+        // The panel must sit entirely above or below the pointer, never over it.
+        coversPointer: clickY >= rect.top && clickY <= rect.bottom,
+      }
+    })
+    // Bounded on both sides: never cramped, never wider or taller than its cap.
+    expect(sizes.width).toBeGreaterThanOrEqual(Math.floor(sizes.minWidth))
+    expect(sizes.width).toBeLessThanOrEqual(Math.ceil(sizes.maxWidth))
+    expect(sizes.height).toBeLessThanOrEqual(Math.ceil(sizes.maxHeight))
+    expect(sizes.height).toBeLessThanOrEqual(sizes.viewportHeight)
+    expect(sizes.subWidth).toBeGreaterThanOrEqual(Math.floor(sizes.subMinWidth))
+    expect(sizes.subWidth).toBeLessThanOrEqual(Math.ceil(sizes.subMaxWidth))
+    expect(sizes.subHeight).toBeLessThanOrEqual(Math.ceil(sizes.subMaxHeight))
+    expect(sizes.subWidth).toBeLessThanOrEqual(sizes.viewportWidth - 16)
+    expect(sizes.coversPointer).toBe(false)
+    await page.keyboard.press('Escape')
+
+    // Push the anchor down near the bottom edge: the panel must flip above it instead
+    // of being clamped over the row it belongs to.
+    const flip = await page.evaluate(() => {
+      document.body.insertAdjacentHTML('afterbegin', '<div style="height:420px"></div>')
+      window.scrollTo(0, 0)
+      const note = document.querySelector('#note') as HTMLElement
+      const rect = note.getBoundingClientRect()
+      const clickY = Math.round(rect.top + rect.height / 2)
+      note.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2,
+        clientX: Math.round(rect.left + 10), clientY: clickY }))
+      return { clickY, viewportHeight: window.innerHeight }
+    })
+    await browserExpect(page.locator('[data-dfa-menu="1"]')).toBeVisible()
+    const placement = await page.evaluate(() => {
+      const menu = document.querySelector('[data-dfa-menu="1"]') as HTMLElement
+      return { top: Math.round(menu.getBoundingClientRect().top), bottom: Math.round(menu.getBoundingClientRect().bottom) }
+    })
+    // Above the pointer and inside the viewport.
+    expect(placement.bottom).toBeLessThanOrEqual(flip.clickY - 2)
+    expect(placement.top).toBeGreaterThanOrEqual(7)
+    expect(placement.bottom).toBeLessThanOrEqual(flip.viewportHeight - 7)
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('the preview is its own block and every section shares one left axis', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    await page.locator('#image').click({ button: 'right' })
+    await browserExpect(page.locator('.dfa-thumb img')).toBeVisible()
+    await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)))
+    const boxes = await page.evaluate(() => {
+      const menu = document.querySelector('[data-dfa-menu="1"]') as HTMLElement
+      const rect = (selector: string) => {
+        const node = menu.querySelector(selector) as HTMLElement | null
+        if (!node) return null
+        const r = node.getBoundingClientRect()
+        return { left: r.left, top: r.top, bottom: r.bottom }
+      }
+      return {
+        thumb: rect('.dfa-thumb'), img: rect('.dfa-thumb img'), head: rect('.dfa-head'),
+        tile: rect('.dfa-tile'), ico: rect('.dfa-ico'), sep: rect('.dfa-sep'), foot: rect('.dfa-foot'),
+      }
+    })
+    // A decoded frame is fitted inside the preview box; it can never reach the header.
+    expect(boxes.img!.bottom).toBeLessThanOrEqual(boxes.thumb!.bottom + 0.5)
+    expect(boxes.thumb!.bottom).toBeLessThanOrEqual(boxes.head!.top)
+    // One left axis: preview, tile, row icons, separators and the footer rule.
+    for (const box of [boxes.thumb, boxes.tile, boxes.ico, boxes.sep, boxes.foot]) {
+      expect(Math.abs(box!.left - boxes.tile!.left)).toBeLessThanOrEqual(1)
+    }
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('the preview opens full size and Escape closes only the lightbox', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    await page.locator('#image').click({ button: 'right' })
+    await browserExpect(page.locator('.dfa-thumb img')).toBeVisible()
+    await page.locator('.dfa-thumb').click()
+    await browserExpect(page.locator('.dfa-lightbox')).toBeVisible()
+    await browserExpect(page.locator('.dfa-lightbox img')).toBeVisible()
+    // Escape dismisses the overlay first; the menu stays for the next action.
+    await page.keyboard.press('Escape')
+    await browserExpect(page.locator('.dfa-lightbox')).toHaveCount(0)
+    await browserExpect(page.locator('[data-dfa-menu="1"]')).toBeVisible()
+    // Clicking the backdrop closes it too.
+    await page.locator('.dfa-thumb').click()
+    await browserExpect(page.locator('.dfa-lightbox')).toBeVisible()
+    await page.locator('.dfa-lightbox').click({ position: { x: 4, y: 4 } })
+    await browserExpect(page.locator('.dfa-lightbox')).toHaveCount(0)
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('Tab keeps keyboard focus inside the menu', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    const readFocus = () => page.evaluate(() => {
+      const menu = document.querySelector('[data-dfa-menu="1"]') as HTMLElement
+      return {
+        inside: !!document.activeElement && menu.contains(document.activeElement),
+        active: menu.getAttribute('aria-activedescendant'),
+      }
+    })
+    const first = await readFocus()
+    await page.keyboard.press('Tab')
+    const second = await readFocus()
+    await page.keyboard.press('Tab')
+    const third = await readFocus()
+    await page.keyboard.press('Shift+Tab')
+    const fourth = await readFocus()
+    expect(first.inside).toBe(true)
+    expect(second.inside).toBe(true)
+    expect(third.inside).toBe(true)
+    expect(fourth.inside).toBe(true)
+    // Focus actually moves row by row, and Shift+Tab walks it back.
+    expect(second.active).not.toBe(first.active)
+    expect(third.active).not.toBe(second.active)
+    expect(fourth.active).toBe(second.active)
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('the association list survives a reload so the next menu opens instantly', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toHaveAttribute('aria-disabled', 'false')
+    expect(await page.evaluate(() => (window as any).calls.apps)).toBeGreaterThan(0)
+    // The store write is debounced by design.
+    await expect.poll(() => page.evaluate(() => !!localStorage.getItem('dsh-file-actions.apps.v1'))).toBe(true)
+    await page.reload()
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toHaveAttribute('aria-disabled', 'false')
+    // No Host walk at all: the stored answer is already there.
+    expect(await page.evaluate(() => (window as any).calls.apps)).toBe(0)
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('a slow preview never lands on the file that replaced it', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    await page.evaluate(() => { (window as any).state.delayThumb = true })
+    const openOn = (selector: string) => page.evaluate((target: string) => {
+      const el = document.querySelector(target) as HTMLElement
+      const rect = el.getBoundingClientRect()
+      el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2,
+        clientX: Math.round(rect.left + 4), clientY: Math.round(rect.top + 4) }))
+    }, selector)
+    await openOn('#image')
+    await browserExpect(page.locator('[data-dfa-menu="1"] .dfa-thumb')).toBeVisible()
+    // Switch files while the first read is still pending.
+    await openOn('#image2')
+    await page.evaluate(() => (window as any).releaseThumb())
+    await browserExpect(page.locator('[data-dfa-menu="1"] .dfa-thumb img')).toBeVisible()
+    const svg = await page.evaluate(async () => {
+      const img = document.querySelector('[data-dfa-menu="1"] .dfa-thumb img') as HTMLImageElement
+      return (await fetch(img.src)).text()
+    })
+    // The visible preview belongs to image2, not to the file opened before it.
+    expect(svg).toContain('#00ff00')
+    expect(svg).not.toContain('#ff0000')
+    expect(errors).toEqual([])
   } finally { await fixture.dispose() }
 })
 

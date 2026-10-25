@@ -280,7 +280,7 @@ async function main() {
     return { color, alpha: parts.length > 3 ? parts[3] : 1 }
   })()`)
   check('menu has an opaque readability floor', Boolean(floor) && floor.alpha >= 0.85, floor && floor.color)
-  check('menu shows a file-type tile and size', titleMenu && titleMenu.kind === 'text' && /\d+(\.\d+)? KB/.test(titleMenu.size), titleMenu && (titleMenu.kind + ' / ' + titleMenu.size))
+  check('menu shows a file-type tile and size', titleMenu && titleMenu.kind === 'data' && /\d+(\.\d+)? KB/.test(titleMenu.size), titleMenu && (titleMenu.kind + ' / ' + titleMenu.size))
   check('menu shows a path line', titleMenu && /package\.json$/.test(titleMenu.path), titleMenu && titleMenu.path)
 
   // The OS association query is slow on Windows; the rows must still land while
@@ -501,7 +501,9 @@ async function main() {
   // 5. a path that does not exist must not hijack the native menu
   const fire5 = await fire('[data-test="bogus"] span')
   const bogusMenu = await waitMenu(3000)
-  check('unknown path leaves no menu behind', bogusMenu === null, fire5)
+  // An absolute tooltip is a real address, so a missing file reports it instead of
+  // silently keeping the browser menu.
+  check('a missing absolute reference reports not-found', Boolean(bogusMenu) && bogusMenu.items.includes('status'), bogusMenu && (bogusMenu.items.join(',') + ' / ' + bogusMenu.labels.join('|')))
   await closeMenu()
 
   // A reference carrying a line (`file.ts:42:7`) keeps the location in the header
