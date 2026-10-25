@@ -123,7 +123,7 @@ async function main() {
   }
 
   const booted = await evaluate(`(() => ({
-    href: location.href.slice(0, 140),
+    href: location.href.replace(/([?&]token=)[^&#]+/g, '$1[redacted]').slice(0, 140),
     ready: document.documentElement.hasAttribute('data-dfa-ready'),
     body: document.body ? document.body.innerText.slice(0, 40) : '',
     bgBase: getComputedStyle(document.body).getPropertyValue('--dsw-alias-bg-base'),
@@ -230,6 +230,7 @@ async function main() {
       loc: menu.querySelector('.dfa-loc')?.textContent || '',
       foot: menu.querySelector('.dfa-foot')?.textContent || '',
       items: [...menu.querySelectorAll('[data-dfa-item]')].map((node) => node.getAttribute('data-dfa-item')),
+      disabledItems: [...menu.querySelectorAll('[data-dfa-item][aria-disabled="true"]')].map((node) => node.getAttribute('data-dfa-item')),
       labels: [...menu.querySelectorAll('.dfa-label')].map((node) => node.textContent),
     }
   })()`)
@@ -280,7 +281,7 @@ async function main() {
     return { color, alpha: parts.length > 3 ? parts[3] : 1 }
   })()`)
   check('menu has an opaque readability floor', Boolean(floor) && floor.alpha >= 0.85, floor && floor.color)
-  check('menu shows a file-type tile and size', titleMenu && titleMenu.kind === 'text' && /\d+(\.\d+)? KB/.test(titleMenu.size), titleMenu && (titleMenu.kind + ' / ' + titleMenu.size))
+  check('menu shows a file-type tile and size', titleMenu && titleMenu.kind === 'data' && /\d+(\.\d+)? KB/.test(titleMenu.size), titleMenu && (titleMenu.kind + ' / ' + titleMenu.size))
   check('menu shows a path line', titleMenu && /package\.json$/.test(titleMenu.path), titleMenu && titleMenu.path)
 
   // The OS association query is slow on Windows; the rows must still land while
@@ -289,7 +290,7 @@ async function main() {
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
       const menu = await readMenu()
-      if (menu && ids.every((id) => menu.items.includes(id))) return menu
+      if (menu && ids.every((id) => menu.items.includes(id) && !menu.disabledItems.includes(id))) return menu
       await sleep(250)
     }
     return null
@@ -501,7 +502,9 @@ async function main() {
   // 5. a path that does not exist must not hijack the native menu
   const fire5 = await fire('[data-test="bogus"] span')
   const bogusMenu = await waitMenu(3000)
-  check('unknown path leaves no menu behind', bogusMenu === null, fire5)
+  // An absolute tooltip is a real address, so a missing file reports it instead of
+  // silently keeping the browser menu.
+  check('a missing absolute reference reports not-found', Boolean(bogusMenu) && bogusMenu.items.includes('status'), bogusMenu && (bogusMenu.items.join(',') + ' / ' + bogusMenu.labels.join('|')))
   await closeMenu()
 
   // A reference carrying a line (`file.ts:42:7`) keeps the location in the header

@@ -7,6 +7,15 @@ name: npm publish
 # statement.
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Select this same tag in Use workflow from; its GitHub archive will also be published to npm
+        required: true
+        type: string
+
+concurrency:
+  group: npm-publish-${{ inputs.tag }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -16,9 +25,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       id-token: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.18.1'
@@ -26,4 +43,13 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --legacy-peer-deps
       - run: npm test
-      - run: npm publish --provenance --access public
+      - run: npm run pack:check
+      - name: Require tagged main source and successful Windows/Linux validation
+        run: node scripts/release-preflight.mjs "$RELEASE_TAG"
+      - name: Download and verify the same archive used by GitHub users
+        run: |
+          mkdir -p work/release
+          gh release download "$RELEASE_TAG" --pattern dsh-file-actions.tgz --dir work/release
+          python3 scripts/verify-release.py --tag "$RELEASE_TAG" --archive work/release/dsh-file-actions.tgz
+      - name: Publish the verified GitHub archive without rebuilding it
+        run: npm publish work/release/dsh-file-actions.tgz --ignore-scripts --provenance --access public

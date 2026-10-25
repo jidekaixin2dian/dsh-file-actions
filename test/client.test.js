@@ -14,7 +14,7 @@ const source = fs.readFileSync(path.join(here, '..', 'lib', 'client.js'), 'utf8'
 // their JSON shape instead of their identity.
 const same = (actual, expected) => assert.equal(JSON.stringify(actual), JSON.stringify(expected))
 
-function loadBundle() {
+function loadBundle(overrides = {}) {
   let captured = null
   const sandbox = {
     window: { __ModuleLoader__: { load: (definition) => { captured = definition } } },
@@ -22,9 +22,25 @@ function loadBundle() {
     URL,
     TextEncoder,
     TextDecoder,
+    // Share the host realm's binary types so `instanceof Uint8Array` inside the bundle
+    // accepts byte fixtures built by the test, exactly like the browser would.
+    Uint8Array,
+    ArrayBuffer,
+    Blob,
+    // Minimal DOM for the download path: a menu action may save a file without a page.
+    document: {
+      querySelector: () => null,
+      createElement: () => ({
+        style: { setProperty() {} }, dataset: {}, className: '', textContent: '',
+        setAttribute() {}, appendChild() {}, click() {}, remove() {}, addEventListener() {},
+      }),
+      body: { appendChild() {} },
+    },
+    navigator: { clipboard: { writeText: async () => {} } },
     setTimeout,
     clearTimeout,
     requestAnimationFrame: (fn) => setTimeout(fn, 0),
+    ...overrides,
   }
   vm.runInNewContext(source, sandbox, { filename: 'client.js' })
   assert.ok(captured, 'bundle did not register itself with the module loader')
@@ -101,7 +117,7 @@ test('pathFromHref unwraps file: URLs and leaves web links alone', () => {
 
 test('classify maps extensions onto menu capabilities', () => {
   const text = api.classify('src/a.ts', false)
-  assert.equal(text.kind, 'text')
+  assert.equal(text.kind, 'code')
   assert.equal(text.canCopyText, true)
   assert.equal(text.canBrowser, false)
 
@@ -116,7 +132,7 @@ test('classify maps extensions onto menu capabilities', () => {
   assert.equal(api.classify('a.md', false).kind, 'markdown')
   assert.equal(api.classify('a.docx', false).kind, 'office')
   assert.equal(api.classify('a.zip', false).kind, 'archive')
-  assert.equal(api.classify('a.exe', false).kind, 'binary')
+  assert.equal(api.classify('a.exe', false).kind, 'exec')
   assert.equal(api.classify('a.exe', false).canCopyText, false)
 
   const dir = api.classify('D:\\repo', true)
@@ -155,8 +171,8 @@ test('a text file gets open, open-with, reveal, copy and save-as rows', () => {
     t: zh,
   })
   assert.equal(model.title, 'a.ts')
-  assert.equal(model.kind, 'text')
-  assert.match(model.meta, /文本/)
+  assert.equal(model.kind, 'code')
+  assert.match(model.meta, /代码/)
   assert.match(model.meta, /2\.0 KB/)
 
   const ids = model.sections.flat().map((item) => item.id)
@@ -356,17 +372,76 @@ test('copying a file outside the workspace asks first; declined copies read noth
   assert.equal(reads.length, 2)
 })
 
-test('save as reads the whole file, with no window', async () => {
+test('save as reads the whole file in chunks until the Host reports the end', async () => {
   const calls = []
   const bridge = {
     readBytes: async (_sessionId, _path, options) => {
       calls.push(options)
-      return { data: new Uint8Array(3), eof: true }
+      // Two full windows then the tail: a 5 MB video no longer dies on the Host cap.
+      const more = calls.length < 3
+      return { data: new Uint8Array(more ? 2 : 1), eof: !more, version: 'v1', absolutePath: 'D:\\r\\big.mp4',
+        offset: options.range.offset, bytes: 5 }
     },
   }
-  await api.dispatch({ action: 'saveAs' }, { absolutePath: 'D:\\r\\a.ts', displayPath: 'a.ts' }, { bridge, t: zh, sessionId: 's' })
-  assert.equal(calls.length, 1)
-  assert.equal(calls[0].range, undefined)
+  await api.dispatch({ action: 'saveAs' }, { absolutePath: 'D:\\r\\big.mp4', displayPath: 'big.mp4' }, { bridge, t: zh, sessionId: 's' })
+  assert.equal(calls.length, 3)
+  assert.deepEqual(calls.map((call) => call.range.offset), [0, 2, 4])
+  assert.equal(calls[0].range.length, 2 * 1024 * 1024)
+})
+
+test('outside copies fail closed when confirmation is absent, throws, rejects, or is not affirmative', async () => {
+  let reads = 0
+  const bridge = { readBytes: async () => { reads++; return { data: new Uint8Array(), eof: true } } }
+  for (const confirm of [undefined, () => { throw new Error('unavailable') }, async () => { throw new Error('unavailable') }, () => 'yes']) {
+    await api.dispatch({ action: 'copyContents' }, { absolutePath: '/outside/a.env', outsideWorkspace: true },
+      { bridge, t: en, sessionId: 's', confirm })
+  }
+  assert.equal(reads, 0)
+  await api.dispatch({ action: 'copyContents' }, { absolutePath: '/outside/a.env', outsideWorkspace: true },
+    { bridge, t: en, sessionId: 's', confirm: async () => true })
+  assert.equal(reads, 1)
+})
+
+test('whole-file reads reject changing identity and noncontiguous or incomplete responses', async () => {
+  const chunk = (offset) => ({ absolutePath: '/a.txt', version: 'v1', bytes: 4, offset,
+    data: new TextEncoder().encode(offset ? 'BB' : 'AA'), eof: offset > 0 })
+  for (const changed of [{ version: 'v2' }, { absolutePath: '/b.txt' }, { bytes: 5 }]) {
+    let calls = 0
+    const result = await api.readAllBytes({ readBytes: async () => calls++ ? { ...chunk(2), ...changed } : chunk(0) }, 's', '/a.txt')
+    same(result, { changed: true })
+  }
+  assert.equal(await api.readAllBytes({ readBytes: async () => chunk(2) }, 's', '/a.txt'), null)
+  same(await api.readAllBytes({ readBytes: async () => ({ ...chunk(0), eof: true }) }, 's', '/a.txt'), { changed: true })
+  same(await api.readAllBytes({ readBytes: async () => ({ ...chunk(0), bytes: 65 * 1024 * 1024 }) }, 's', '/a.txt'), { tooLarge: true })
+  let calls = 0
+  const valid = await api.readAllBytes({ readBytes: async () => chunk(calls++ * 2) }, 's', '/a.txt')
+  assert.equal(new TextDecoder().decode(valid), 'AABB')
+})
+
+test('invalid UTF-8 never reaches the clipboard, while Unicode text is preserved', async () => {
+  const copied = []
+  const isolated = loadBundle({ navigator: { clipboard: { writeText: async text => copied.push(text) } } }).__internals
+  const copy = async data => isolated.dispatch({ action: 'copyContents' }, { absolutePath: '/a.txt' },
+    { bridge: { readBytes: async () => ({ data, eof: true }) }, t: en, sessionId: 's' })
+  await copy(new Uint8Array([0xd6, 0xd0, 0xce, 0xc4]))
+  assert.equal(copied.length, 0)
+  await copy(new TextEncoder().encode("中文 é 😀 O'Connor"))
+  assert.deepEqual(copied, ["中文 é 😀 O'Connor"])
+})
+
+test('UNC file URLs retain their absolute identity and encoded names', () => {
+  assert.equal(api.pathFromHref('file://server/share/report.txt'), '//server/share/report.txt')
+  assert.equal(api.pathFromHref('file://server/share/%E4%B8%AD%E6%96%87%20a.txt'), '//server/share/中文 a.txt')
+  assert.equal(api.isAbsolutePath(api.pathFromHref('file://server/share/report.txt')), true)
+  assert.equal(api.pathFromHref('file://localhost/C:/a%20b.txt'), 'C:/a b.txt')
+})
+
+test('path heuristics understand located references, dotfiles, and known extensionless files', () => {
+  for (const path of ['src/app.ts:42:7', 'notes.md#L42-L48', '.env', 'Dockerfile']) {
+    assert.equal(api.looksLikePath(path), true, path)
+    assert.equal(api.softPath(path), true, path)
+  }
+  assert.equal(api.looksLikePath('ordinary words'), false)
 })
 
 test('soft sources must look like a real file', () => {
@@ -419,7 +494,7 @@ test('the header path prefers the workspace-relative form', () => {
   })
   assert.equal(inside.pathLine, 'src/a.ts')
   assert.equal(inside.sizeLabel, '10 B')
-  assert.equal(inside.kindLabel, '文本')
+  assert.equal(inside.kindLabel, '代码')
 
   const outside = api.buildMenuModel({
     absolutePath: 'C:\\Users\\me\\.ssh\\id_rsa', displayPath: 'id_rsa', isDir: false, apps: [], bytes: 10,
@@ -474,7 +549,7 @@ test('a resource Session is resolved exactly, never replaced by the active chat'
 test('subtitles, video and audio are classified for the menu', () => {
   for (const name of ['a.srt', 'a.ass', 'a.ssa', 'a.vtt', 'a.lrc']) {
     const kind = api.classify(name, false)
-    assert.equal(kind.kind, 'text', name)
+    assert.equal(kind.kind, 'subtitle', name)
     assert.equal(kind.canCopyText, true, name)
   }
   const mp4 = api.classify('成片.mp4', false)
@@ -487,8 +562,8 @@ test('subtitles, video and audio are classified for the menu', () => {
   const mp3 = api.classify('a.mp3', false)
   assert.equal(mp3.kind, 'audio')
   assert.equal(mp3.canBrowser, true)
-  assert.equal(api.classify('a.psd', false).kind, 'binary')
-  assert.equal(api.classify('a.ipynb', false).kind, 'text')
+  assert.equal(api.classify('a.psd', false).kind, 'design')
+  assert.equal(api.classify('a.ipynb', false).kind, 'code')
   assert.equal(api.mimeOf('a.mp4'), 'video/mp4')
   assert.equal(api.mimeOf('a.mp3'), 'audio/mpeg')
 })
@@ -508,7 +583,7 @@ test('a video file gets the browser row, a subtitle file the copy row', () => { 
   const subtitleIds = subtitle.sections.flat().map((item) => item.id)
   assert.equal(subtitleIds.includes('copyContents'), true)
   assert.equal(subtitleIds.includes('browser'), false)
-  assert.equal(subtitle.kindLabel, '文本')
+  assert.equal(subtitle.kindLabel, '字幕')
 })
 
 // A delivery table renders "📄发布文案.md"; the decoration must not defeat detection.
@@ -556,17 +631,34 @@ test('application ordering keeps every unique association and puts explicit pref
   assert.equal(model.sections.flat().find(row => row.id === 'openWith').children[0].preferred, true)
 })
 
-test('association loading, empty result and query failure have stable slots and distinct feedback', () => {
-  const model = state => api.buildMenuModel({ absolutePath: '/repo/a.txt', apps: [], appsState: state, t: en })
-  const rows = state => model(state).sections.flat()
-  same(rows('loading').map(row => row.id), rows('ready').map(row => row.id))
-  same(rows('loading').map(row => row.id), rows('failed').map(row => row.id))
-  assert.equal(rows('loading').find(row => row.id === 'editor').label, en.appsLoading)
-  assert.equal(rows('ready').find(row => row.id === 'openWith').label, en.appsEmpty)
-  const failure = rows('failed').find(row => row.id === 'openWith')
-  assert.equal(failure.action, 'retryApps')
-  assert.equal(failure.disabled, false)
-  assert.equal(failure.keepOpen, true)
+test('a failed or empty application lookup leaves no dead row in the menu', () => {
+  const rows = state => api.buildMenuModel({ absolutePath: '/repo/a.txt', apps: [], appsState: state, t: en }).sections.flat()
+  // While the query runs the editor row keeps its slot (so rows below do not jump)
+  // but carries a neutral label instead of "no preferred application".
+  const loadingEditor = rows('loading').find(row => row.id === 'editor')
+  assert.equal(loadingEditor.label, en.editorPending)
+  assert.equal(loadingEditor.disabled, true)
+  // The submenu keeps a disabled slot while the query runs, so the rows below it
+  // stay put when the answer lands.
+  const loadingOpenWith = rows('loading').find(row => row.id === 'openWith')
+  assert.equal(loadingOpenWith.label, en.openWith)
+  assert.equal(loadingOpenWith.disabled, true)
+  assert.equal(loadingOpenWith.children, undefined)
+  // A failed lookup is not actionable — the Host query throws when one registered
+  // handler is broken — so the menu offers nothing rather than a retry that cannot
+  // succeed. An empty answer has nothing to list either.
+  for (const state of ['failed', 'ready']) {
+    assert.equal(rows(state).some(row => row.id === 'editor'), false, state)
+    assert.equal(rows(state).some(row => row.id === 'openWith'), false, state)
+  }
+  assert.equal(rows('failed').some(row => row.action === 'retryApps'), false)
+  // With a real association list the editor shortcut comes back next to the submenu.
+  const ready = api.buildMenuModel({
+    absolutePath: '/repo/a.txt', appsState: 'ready', t: en,
+    apps: [{ id: 'code', name: 'Visual Studio Code', default: true, icon: null }],
+  }).sections.flat()
+  assert.equal(ready.find(row => row.id === 'editor').label, 'Open in Visual Studio Code')
+  assert.equal(ready.find(row => row.id === 'openWith').children.length, 1)
 })
 
 test('preferences persist by file type and report storage failure without claiming success', () => {
@@ -655,8 +747,110 @@ test('every menu row names an icon that exists', () => {
   assert.equal(api.iconSvg('link'), svg.replace(/<path[^>]*\/><path[^>]*\/>/, api.ICON_PATHS.link) === svg ? svg : api.iconSvg('link'))
 })
 
+test('the preference pin is the drawn star glyph, not a text character', () => {
+  const svg = api.iconSvg('star')
+  assert.match(svg, /viewBox="0 0 24 24"/)
+  assert.match(svg, /stroke-width="1\.9"/)
+  // ★/☆ inherit whatever font the page loaded, so their weight and size never
+  // matched the row icons; the pin has to come from the same 24-grid set.
+  assert.doesNotMatch(source, /'[★☆]'|"[★☆]"/)
+  assert.match(source, /pin\.innerHTML = iconSvg\('star'\)/)
+})
+
+test('the menu clips its children so the sticky submenu header cannot square the corners', () => {
+  const rule = source.match(/\.dfa-menu\{([\s\S]*?)\}/)
+  assert.ok(rule, 'the .dfa-menu rule is missing')
+  // The header is sticky with an opaque background and negative margins; without the
+  // clip it paints over the rounded top corners until the scroll fade masks it.
+  assert.match(rule[1], /overflow:hidden/)
+  assert.match(source, /\.dfa-subhead\{position:sticky/)
+})
+
+test('the preview block clips its image instead of letting it overflow the header', () => {
+  const thumb = source.match(/\.dfa-thumb\{([\s\S]*?)\}/)
+  assert.ok(thumb, 'the .dfa-thumb rule is missing')
+  assert.match(thumb[1], /overflow:hidden/)
+  assert.match(thumb[1], /border-radius/)
+  const img = source.match(/\.dfa-thumb img\{([\s\S]*?)\}/)
+  assert.ok(img, 'the .dfa-thumb img rule is missing')
+  // A percentage max-height inside the grid did not constrain a decoded frame — a
+  // 188px video poster overflowed a 137px box and covered the file name row.
+  assert.match(img[1], /position:absolute/)
+  assert.match(img[1], /object-fit:contain/)
+})
+
 test('the link menu uses distinct, meaningful glyphs', () => {
   const model = api.buildLinkMenuModel({ url: 'https://github.com/x/y', text: 'v0.1.12', t: zh })
   const icons = model.sections.flat().map((item) => `${item.id}:${item.icon}`)
   assert.equal(icons.join(','), 'openLink:external,copyLink:link,copyLinkText:text,copyMarkdown:markdown')
+})
+
+// Every file type the classifier can produce needs its own glyph and tile colour:
+// a missing entry used to fall back to the document icon, which read as "unknown".
+test('each file kind has a glyph and a tile hue', () => {
+  const table = {
+    'a.ts': 'code', 'a.py': 'code', 'a.json': 'data', 'a.yaml': 'data', 'a.csv': 'data',
+    'a.srt': 'subtitle', 'a.vtt': 'subtitle',
+    'a.ttf': 'font', 'a.woff2': 'font',
+    'a.psd': 'design', 'a.fig': 'design',
+    'a.blend': 'model', 'a.glb': 'model',
+    'a.iso': 'disk', 'a.vhd': 'disk',
+    'a.exe': 'exec', 'a.msi': 'exec', 'a.wasm': 'exec',
+    'a.mp4': 'video', 'a.mkv': 'video',
+    'a.mp3': 'audio', 'a.flac': 'audio',
+    'a.txt': 'text', 'a.md': 'markdown', 'a.html': 'html', 'a.pdf': 'pdf',
+    'a.png': 'image', 'a.docx': 'office', 'a.zip': 'archive', 'a.unknown-ext': 'binary',
+  }
+  for (const [name, kind] of Object.entries(table)) {
+    assert.equal(api.classify(name, false).kind, kind, name)
+  }
+  assert.equal(api.classify('some-folder', true).kind, 'dir')
+
+  const kinds = new Set(Object.values(table).concat(['dir', 'link']))
+  for (const kind of kinds) {
+    assert.equal(typeof api.KIND_ICONS[kind], 'string', 'missing glyph mapping: ' + kind)
+    assert.equal(typeof api.ICON_PATHS[api.KIND_ICONS[kind]], 'string', 'missing glyph: ' + kind)
+    assert.ok(api.CSS.includes('.dfa-tile[data-kind="' + kind + '"]'), 'missing tile hue: ' + kind)
+  }
+})
+
+test('video files preview a poster frame instead of the generic tile', () => {
+  const video = api.buildMenuModel({
+    absolutePath: 'D:\\repo\\out\\成片.mp4', displayPath: 'out/成片.mp4', isDir: false, apps: [], bytes: 4096,
+    cwd: 'D:\\repo', t: zh,
+  })
+  assert.equal(video.kind, 'video')
+  assert.equal(video.kindLabel, '视频')
+  assert.equal(video.preview, true)
+  assert.equal(video.sections.flat().some((item) => item.id === 'browser'), true)
+})
+
+// A duplicated key is silent at runtime — the last one wins — so it survives code
+// review and slowly rots the dictionaries. Catch it statically instead.
+test('the ZH and EN dictionaries have no duplicate keys', () => {
+  const blockOf = (name) => {
+    const start = source.indexOf(`const ${name} = {`)
+    assert.ok(start >= 0, `missing ${name}`)
+    let depth = 0
+    for (let at = source.indexOf('{', start); at < source.length; at += 1) {
+      if (source[at] === '{') depth += 1
+      else if (source[at] === '}') {
+        depth -= 1
+        if (depth === 0) return source.slice(start, at + 1)
+      }
+    }
+    throw new Error(`unbalanced ${name}`)
+  }
+  const duplicates = (text, indent) => {
+    const keys = [...text.matchAll(new RegExp(`^\\s{${indent}}([A-Za-z][\\w]*)\\s*:`, 'gm'))].map((match) => match[1])
+    return keys.filter((key, at) => keys.indexOf(key) !== at)
+  }
+  for (const name of ['ZH', 'EN']) {
+    const text = blockOf(name)
+    assert.deepEqual(duplicates(text, 4), [], `${name}: duplicate top-level key`)
+    const kindsAt = text.indexOf('kinds: {')
+    assert.ok(kindsAt >= 0, `${name}: missing kinds`)
+    const kinds = text.slice(kindsAt, text.indexOf('},', kindsAt))
+    assert.deepEqual(duplicates(kinds, 6), [], `${name}: duplicate kind key`)
+  }
 })

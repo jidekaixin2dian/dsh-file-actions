@@ -40,6 +40,17 @@ jobs:
         run: npx --no-install playwright install --with-deps chromium
       - name: Host filesystem and browser regression
         run: npm run test:host
+        env:
+          DFA_RESULTS: work/results/rc3
+      - name: Prepare minimum supported host
+        run: npm run setup:host
+        env:
+          DFA_HOST_VERSION: rc.2
+      - name: Minimum host filesystem and browser regression
+        run: npm run test:host
+        env:
+          DFA_HOST_VERSION: rc.2
+          DFA_RESULTS: work/results/rc2
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

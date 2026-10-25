@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-**0.1.11** adds npm distribution, retaining the file verification feedback, preferred applications, menu stability and font scaling from 0.1.10. See [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions), [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) and the [Changelog](CHANGELOG.md).
+**0.1.15** improves inline references, video previews and menu interaction, and fixes file-read integrity, preview isolation and application caches. npm and GitHub Release use the same verified archive, with npm provenance. See [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions), [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) and the [Changelog](CHANGELOG.md).
 
 Right-click files and links to open, reveal, copy or save them.
 
@@ -64,9 +64,9 @@ The link menu:
 
 *Open with* keeps every registered application, ordered by preferred application, system default, editors, then other applications. A search box appears above seven entries.
 
-Click ☆ beside an application to prefer it for that file type; click ★ to clear it. Keyboard users can select an application and press `Shift+Enter`. Preferences stay in this browser and do not change OS associations. An unavailable preferred application falls back to an available editor.
+Click the star beside an application to prefer it for that file type; click again to clear it. Keyboard users can press `Shift+Enter`. Preferences stay in this browser and do not change OS associations. Stored associations paint immediately and are validated in the background. An unavailable preference falls back to an available editor shortcut. Failed opens refresh associations without automatically repeating the action.
 
-Explicit file references show progress and a retryable error when verification fails. Guessed text paths are verified on hover or focus; until verified, they retain the native menu. Hold `Shift` while right-clicking to keep the native menu anywhere.
+Explicit file references show progress and a retryable error when verification fails. Guessed text paths are verified on hover or focus; until verified, they retain the native menu. `Shift` lets the page handle a right-click first; if nobody handles it, the plugin falls back to its own menu.
 
 ![Search applications](assets/preview-search.png)
 
@@ -88,19 +88,20 @@ Readable on a wallpaper with a liquid-glass theme — the menu paints a near-opa
 - *Open with* only lists registered applications. Preferences do not change OS defaults.
 - Opening an editor currently opens the file only; the pinned Host API does not accept line or column positions.
 - Save as uses the browser's download dialog with the original file name.
-- Copy contents is capped at 2 MiB. Save as and browser previews use the host complete-file cap (32 MiB by default on DSH 0.2.1-rc.2); larger files must be opened externally.
-- HTML/SVG previews retain scripts in an opaque-origin sandbox. They cannot access the DSH page or cookies. Relative sibling assets and actions that require top navigation or same-origin storage may not work.
+- Copy contents is capped at 2 MiB and accepts valid UTF-8 only. Other encodings require an editor. Copies outside the workspace require confirmation; unavailable confirmation cancels the read.
+- Save as and browser previews read chunks up to 64 MiB total and stop if the file version changes. Larger files must be opened externally.
+- HTML/SVG previews initially disable scripts, forms, automatic refresh and external resource loading. Trusted files can opt in to scripts and network access using the preview button. The opaque-origin sandbox still blocks access to DSH DOM/cookies. Relative sibling assets, top navigation and same-origin storage may not work. Clicking a link inside a file is an explicit user navigation.
 - Web UI only — the terminal build has nothing to right-click.
 
 ## FAQ
 
 **Why does the native menu appear?** Plain prose and editable fields keep it. Guessed file paths are verified on hover or focus; cold or failed guesses retain the native menu. Explicit file references show a reason and a retry action on failure.
 
-**Is *Open with* unavailable?** Loading, empty results and failed queries are shown separately. Click a failed query to retry.
+**Is *Open with* unavailable?** Loading keeps placeholders; empty or failed results hide the association rows. Another right-click retries. Broken OS associations can fail the entire Host query; the plugin does not repair registry entries.
 
 **Nothing opens in the browser?** The popup may have been blocked; allow popups and retry.
 
-**How do I choose an application?** Click ☆ in *Open with*. Without a preference, the shortcut uses a recognised editor. *Open file* continues to use the system default.
+**How do I choose an application?** Click the star in *Open with*. Without a preference, the shortcut uses a recognised editor. *Open file* continues to use the system default.
 
 ## Development and verification
 
@@ -114,7 +115,7 @@ npm run test:host
 npm run pack:check
 ```
 
-The pinned host is DSH **0.2.1-rc.3** (`1f81c047fc48fa190a683e469daa699857e9afe8`). `DFA_HOST` can reuse a clean checkout at that exact commit. Windows uses headless Edge; Linux needs `npx --no-install playwright install --with-deps chromium`. CI runs both systems. No runtime dependencies or build step are added to the plugin.
+The default pinned host is DSH **0.2.1-rc.3** (`1f81c047fc48fa190a683e469daa699857e9afe8`). Set `DFA_HOST_VERSION=rc.2` to verify the minimum supported host (`687f282e8625c6b8d11ff58211a90524be2e4317`). `DFA_HOST` can reuse the matching clean checkout. Windows uses headless Edge; Linux needs `npx --no-install playwright install --with-deps chromium`. CI covers rc.2/rc.3 on both systems. The plugin still has no runtime dependencies or build step.
 
 The browser suite uses the actual client bundle and real WorkspaceFiles over synthetic references. It checks Session identity, sandboxed script isolation, a real 3 MiB download and unload behavior. A separate browser suite uses deterministic Remote responses for native-menu fallback, preferences, asynchronous stability, search and large text. This is not a complete Desktop or OS application-launch test. Optional full-Web drivers and historical assertion counts are documented in [test-e2e](test-e2e/README.md).
 
