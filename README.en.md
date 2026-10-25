@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-**0.1.11** adds npm distribution, retaining the file verification feedback, preferred applications, menu stability and font scaling from 0.1.10. See [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions), [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) and the [Changelog](CHANGELOG.md).
+**0.1.15** improves inline references, video previews and menu interaction, and fixes file-read integrity, preview isolation and application caches. npm and GitHub Release use the same verified archive, with npm provenance. See [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions), [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) and the [Changelog](CHANGELOG.md).
 
 Right-click files and links to open, reveal, copy or save them.
 

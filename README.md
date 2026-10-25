@@ -2,7 +2,7 @@
 
 [English](README.en.md)
 
-**0.1.13** 对齐 npm 与 GitHub Release 两个安装渠道（同源构建），npm 发布附带 provenance 来源证明；延续 0.1.12 的引用行号、复制动作与工作区外复制确认。安装包见 [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions) 和 [Release](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest)，修复记录见[变更记录](CHANGELOG.md)。
+**0.1.15** 补齐行内引用、视频预览与菜单交互，并修复文件读取、预览隔离和应用缓存问题。npm 与 GitHub Release 使用同一份校验归档，npm 发布附带 provenance 来源证明。安装包见 [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions) 和 [Release](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest)，详情见[变更记录](CHANGELOG.md)。
 
 右键文件和链接，直接打开、定位、复制或另存。
 

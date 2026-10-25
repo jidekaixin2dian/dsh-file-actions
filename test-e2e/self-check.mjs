@@ -123,7 +123,7 @@ async function main() {
   }
 
   const booted = await evaluate(`(() => ({
-    href: location.href.slice(0, 140),
+    href: location.href.replace(/([?&]token=)[^&#]+/g, '$1[redacted]').slice(0, 140),
     ready: document.documentElement.hasAttribute('data-dfa-ready'),
     body: document.body ? document.body.innerText.slice(0, 40) : '',
     bgBase: getComputedStyle(document.body).getPropertyValue('--dsw-alias-bg-base'),
