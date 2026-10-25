@@ -1,133 +1,76 @@
-# dsh-file-actions
+# File Actions
 
-[中文](README.md)
+**Turn a file reference in your conversation into the next action.**
 
-**0.1.15** improves inline references, video previews and menu interaction, and fixes file-read integrity, preview isolation and application caches. npm and GitHub Release use the same verified archive, with npm provenance. See [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions), [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) and the [Changelog](CHANGELOG.md).
+[中文](README.md) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
 
-Right-click files and links to open, reveal, copy or save them.
+Right-click a file or link to open it, choose an application, reveal it, copy it or save it. Works with chat references, delivery cards, tool results and sidebars that expose file paths.
 
-![File context menu](assets/preview-dark.png)
+![File menu appearance example](assets/preview-glass.png)
 
-## Install
+| Your next step | Available actions |
+|---|---|
+| Keep editing | Open with the default app, search applications, save a preference per file type |
+| Locate and reference | Reveal in the file manager; copy paths, names or references with line numbers |
+| View and export | Preview supported documents and media, copy text, save a local file |
+| Share a link | Open, copy the URL or text, copy as Markdown |
 
-Requires DSH `>=0.2.1-rc.2` (CI continuously verifies both 0.2.1-rc.2 and 0.2.1-rc.3) and Node >=24. Quit the DSH desktop app completely, then run:
+## Install and update
+
+Requires **DSH >=0.2.1-rc.2 and Node >=24**. CI verifies DSH rc.2 / rc.3.
+
+Search for **dsh-file-actions** in the marketplace and verify author **jidekaixin2dian**. Existing users can check updates under installed plugins. Catalog and registry mirrors may take time to refresh.
+
+Alternatively, quit DSH completely and use the same command for installation or updates:
 
 ```powershell
 dsh plugin --profile desktop add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
 ```
 
-Reopen DSH to activate it. The explicit npm registry avoids mirror synchronization delays. Append `@0.1.11` to the package name to install that exact version.
+Reopen DSH. Downloadable archives are available in [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest). A plain `npm install` does not register the plugin with DSH.
 
-GitHub Release installation remains available:
+<details>
+<summary>Alternative installation and removal</summary>
 
 ```powershell
 dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
 ```
 
-To download the npm archive without installing the plugin:
+Remove, then reopen DSH:
 
 ```powershell
-npm pack @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
+dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions
 ```
 
-A plain `npm install` does not register the plugin with DSH; use `dsh plugin` above. To follow source instead, use `dsh plugin --profile desktop add github:jidekaixin2dian/dsh-file-actions`.
+</details>
 
-To remove it: dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions, then reopen DSH.
+## Use
 
-## Using it
+1. Right-click a file reference, delivery card or file tree. Explicit references open directly; guessed text paths are verified first.
+2. Search **Open with** and star an application to remember it for that file type. OS defaults stay unchanged.
+3. Enlarge image thumbnails or view supported documents, audio and video in the browser.
 
-Right-click a file name in any of these places:
+Keyboard: `Shift+F10` opens the menu, `↑ ↓` move, `→` enters a submenu, `Enter` runs and `Esc` closes. `Shift+right-click` gives the page's own handler priority.
 
-- inline code in the transcript (blue, dotted underline)
-- delivery cards and the changed-files list
-- file links in tool-call rows (read, write, edit)
-- the right Sidebar file tree
-- the document preview title
-- web links with the same blue style (GitHub releases, discussions, …)
+## Boundaries
 
-![Open with](assets/preview-open-with.png)
+- File operations use official DSH APIs and path authorization. Application lists depend on system associations; the plugin does not repair registry entries.
+- Copy contents accepts **valid UTF-8 up to 2 MiB**. Copies outside the workspace require explicit confirmation; unavailable confirmation cancels the read.
+- Save and browser previews read up to **64 MiB** and stop on inconsistent chunks. This is not an atomic filesystem snapshot.
+- HTML / SVG previews block scripts and external resources by default. Enable scripts and networking only for a trusted file; the preview remains isolated from DSH. Relative assets may not work. Clicking a document link is an explicit navigation.
+- Editor actions do not jump to line/column positions. Save uses browser download behavior. The plugin needs the graphical / Web UI.
 
-The rows follow the file type:
+<details>
+<summary>FAQ</summary>
 
-| File | What you get |
-|---|---|
-| Code, text, config, subtitles | open, open in editor, open with, reveal, copy path, copy relative path, copy file name, copy contents, save as |
-| Markdown, HTML, SVG, PDF, images | the same plus *Open in browser*; images and SVG also show a thumbnail |
-| Video, audio | open, open with, play in browser (mp4 / mov / webm, mp3 / wav / flac …), save as |
-| Office, archives, design files, 3D, disk images, binaries | open, open with, reveal, copy path, save as |
-| Folders | open folder, reveal, copy path, copy relative path |
-| Web links | open link, copy link, copy link text, copy as Markdown |
+**Why the native menu?** Plain text, editable fields and unverified guessed paths retain it. Failed explicit references show a reason and retry action.
 
-The link menu:
+**Where is Open with?** Empty or failed queries hide those rows; right-click again to retry. Broken associations need a system or host fix.
 
-![Link menu](assets/preview-link.png)
+**No preview window?** Check whether the browser blocked a popup.
 
-*Open with* keeps every registered application, ordered by preferred application, system default, editors, then other applications. A search box appears above seven entries.
+</details>
 
-Click the star beside an application to prefer it for that file type; click again to clear it. Keyboard users can press `Shift+Enter`. Preferences stay in this browser and do not change OS associations. Stored associations paint immediately and are validated in the background. An unavailable preference falls back to an available editor shortcut. Failed opens refresh associations without automatically repeating the action.
+[Development and verification](https://github.com/jidekaixin2dian/dsh-file-actions/blob/main/docs/development.md) · [Security](SECURITY.md) · [Issues](https://github.com/jidekaixin2dian/dsh-file-actions/issues)
 
-Explicit file references show progress and a retryable error when verification fails. Guessed text paths are verified on hover or focus; until verified, they retain the native menu. `Shift` lets the page handle a right-click first; if nobody handles it, the plugin falls back to its own menu.
-
-![Search applications](assets/preview-search.png)
-
-Image files get a thumbnail:
-
-![Image thumbnail](assets/preview-image.png)
-
-Keyboard works too: `Shift+F10` or the menu key opens the same menu, `↑ ↓` move, `→` enters the submenu, `Enter` runs, `Esc` closes.
-
-Readable on a wallpaper with a liquid-glass theme — the menu paints a near-opaque base under the themed layer:
-
-![Readability over a wallpaper](assets/preview-glass.png)
-
-![Light theme](assets/preview-light.png)
-
-## Limitations
-
-- Not a native menu. Text follows the page root font size and page zoom, not the operating system text-size setting directly.
-- *Open with* only lists registered applications. Preferences do not change OS defaults.
-- Opening an editor currently opens the file only; the pinned Host API does not accept line or column positions.
-- Save as uses the browser's download dialog with the original file name.
-- Copy contents is capped at 2 MiB and accepts valid UTF-8 only. Other encodings require an editor. Copies outside the workspace require confirmation; unavailable confirmation cancels the read.
-- Save as and browser previews read chunks up to 64 MiB total and stop if the file version changes. Larger files must be opened externally.
-- HTML/SVG previews initially disable scripts, forms, automatic refresh and external resource loading. Trusted files can opt in to scripts and network access using the preview button. The opaque-origin sandbox still blocks access to DSH DOM/cookies. Relative sibling assets, top navigation and same-origin storage may not work. Clicking a link inside a file is an explicit user navigation.
-- Web UI only — the terminal build has nothing to right-click.
-
-## FAQ
-
-**Why does the native menu appear?** Plain prose and editable fields keep it. Guessed file paths are verified on hover or focus; cold or failed guesses retain the native menu. Explicit file references show a reason and a retry action on failure.
-
-**Is *Open with* unavailable?** Loading keeps placeholders; empty or failed results hide the association rows. Another right-click retries. Broken OS associations can fail the entire Host query; the plugin does not repair registry entries.
-
-**Nothing opens in the browser?** The popup may have been blocked; allow popups and retry.
-
-**How do I choose an application?** Click the star in *Open with*. Without a preference, the shortcut uses a recognised editor. *Open file* continues to use the system default.
-
-## Development and verification
-
-Node >=24, Git and pnpm:
-
-```sh
-npm ci --ignore-scripts
-npm test
-npm run setup:host
-npm run test:host
-npm run pack:check
-```
-
-The default pinned host is DSH **0.2.1-rc.3** (`1f81c047fc48fa190a683e469daa699857e9afe8`). Set `DFA_HOST_VERSION=rc.2` to verify the minimum supported host (`687f282e8625c6b8d11ff58211a90524be2e4317`). `DFA_HOST` can reuse the matching clean checkout. Windows uses headless Edge; Linux needs `npx --no-install playwright install --with-deps chromium`. CI covers rc.2/rc.3 on both systems. The plugin still has no runtime dependencies or build step.
-
-The browser suite uses the actual client bundle and real WorkspaceFiles over synthetic references. It checks Session identity, sandboxed script isolation, a real 3 MiB download and unload behavior. A separate browser suite uses deterministic Remote responses for native-menu fallback, preferences, asynchronous stability, search and large text. This is not a complete Desktop or OS application-launch test. Optional full-Web drivers and historical assertion counts are documented in [test-e2e](test-e2e/README.md).
-
-Use one PR per change set. Full CI runs for PRs targeting main and pushes to main. New commits cancel obsolete checks for the same PR; tags do not repeat the full suite, while Releases retain archive integrity checks.
-
-Auto-merge requires explicit opt-in for each PR; passing contributor checks never opts it in automatically. After review, the owner can run `node scripts/enable-owner-auto-merge.mjs <PR number>` for an owner-authored, same-repository, non-draft PR. External and bot PRs retain a manual maintainer decision. This helper preserves all four required checks and does not publish releases.
-
-## Releases
-
-- [Latest release](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest)
-- [Announcement](https://github.com/deepseek-ai/deepseek-harness/discussions/10576)
-
-## License
-
-MIT
+MIT · Independent community plugin, not affiliated with DeepSeek.

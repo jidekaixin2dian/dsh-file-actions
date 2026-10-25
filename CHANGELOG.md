@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.16 — 2026-10-26
+
+- 重整中英文 README：安装更新优先，保留兼容与权限边界，开发说明移入独立文档。
+- Refresh Chinese/English documentation and installation guidance; runtime behavior is unchanged.
+- 明确市场与 npm 更新入口，指定公开截图，收起首页维护流程。
+
+
 ## 0.1.15 — 2026-10-25
 
 - 审查修复：工作区外复制在确认不可用或异常时拒绝读取；无效 UTF-8 不再静默替换后报告成功；分块下载核对版本、路径、偏移和大小，读取期间变化会中止。
