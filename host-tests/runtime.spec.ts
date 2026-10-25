@@ -3,6 +3,7 @@ import path from 'node:path'
 import { createServer } from 'node:http'
 import { chromium } from '@playwright/test'
 import { expect, it } from 'vitest'
+import { listenSafe } from './server.ts'
 import { openWorkspace, signal } from 'host-source/packages/api/workspace-files/tests/harness.ts'
 
 it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, unload and cache cleanup', async () => {
@@ -12,6 +13,7 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
   const client = fs.readFileSync(path.join(project, 'lib/client.js'), 'utf8')
   const calls: Array<{ id: string; path: string; op: string }> = []
   const fixtureErrors: string[] = []
+  const outbound: string[] = []
   let release: (() => void) | undefined
   let pending = false
   const attack = `<html><body><script>
@@ -26,6 +28,7 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
   fs.writeFileSync(path.join(host.workspace, 'image.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="red"/></svg>')
   const server = createServer(async (req, res) => {
     try {
+      if (req.url?.startsWith('/collect?')) { outbound.push(req.url); res.end('synthetic receiver'); return }
       if (req.url === '/client.js') { res.setHeader('content-type', 'text/javascript'); res.end(client); return }
       if (req.url === '/') {
         res.setHeader('content-type', 'text/html; charset=utf-8')
@@ -74,8 +77,12 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
       res.end(JSON.stringify({ ok: true, value: args.op === 'readBytes' ? { ...value, data: Array.from((value as any).data) } : value }))
     } catch (error) { fixtureErrors.push(String(error)); res.end(JSON.stringify({ ok: false })) }
   })
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  await listenSafe(server)
   const address = server.address() as { port: number }
+  const receiver = `http://127.0.0.1:${address.port}/collect?synthetic=`
+  fs.writeFileSync(path.join(host.workspace, 'preview.html'), attack.replace('window.scriptRan = true;',
+    `window.scriptRan = true; new Image().src=${JSON.stringify(receiver + 'script')};`)
+    + `<img src="${receiver}image"><style>body{background-image:url('${receiver}css')}</style>`)
   let browser
   let page
   try {
@@ -101,7 +108,7 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     }
 
     // The actual action creates a popup, reads from the real Host and installs
-    // a sandboxed preview; file scripts run but cannot reach DSH DOM/cookies.
+    // a static safe preview. Script/network execution requires a separate opt-in.
     const popupPromise = page.waitForEvent('popup')
     await page.evaluate(({ file }) => {
       void (window as any).plugin.__internals.dispatch({ action: 'browser' }, { absolutePath: file }, {
@@ -110,6 +117,16 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
       })
     }, { file: path.join(host.workspace, 'preview.html') })
     const popup = await popupPromise
+    await expect.poll(() => popup.locator('button').count()).toBe(1)
+    await expect.poll(async () => {
+      const frame = popup.frames().find(frame => frame !== popup.mainFrame())
+      return frame?.locator('body').textContent()
+    }).toContain('Preview')
+    const safe = popup.frames().find(frame => frame !== popup.mainFrame())!
+    expect(await safe.evaluate(() => (window as any).scriptRan)).toBeUndefined()
+    await popup.screenshot({ path: path.join(project, 'work/results/preview-safe.png') })
+    expect(outbound).toEqual([])
+    await popup.getByRole('button', { name: /enable scripts and network/i }).click()
     await expect.poll(async () => {
       const frame = popup.frames().find(frame => frame !== popup.mainFrame())
       return frame?.evaluate(() => (window as any).scriptRan)
@@ -117,7 +134,20 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     const child = popup.frames().find(frame => frame !== popup.mainFrame())!
     expect(await child.evaluate(() => [(window as any).parentReadable, (window as any).cookieReadable, (window as any).openerReadable])).toEqual([false, false, false])
     expect(await popup.evaluate(() => window.opener)).toBe(null)
+    await expect.poll(() => outbound.includes('/collect?synthetic=script')).toBe(true)
     await popup.close()
+
+    const refreshPopupPromise = page.waitForEvent('popup')
+    await page.evaluate(({ receiver }) => {
+      const win = window.open('', '_blank')!
+      ;(window as any).plugin.__internals.fillBrowserWindow(win,
+        new TextEncoder().encode(`<meta http-equiv="refresh" content="0;url=${receiver}refresh">Static refresh fixture`), 'text/html')
+    }, { receiver })
+    const refreshPopup = await refreshPopupPromise
+    await expect.poll(async () => refreshPopup.frames().find(frame => frame !== refreshPopup.mainFrame())?.locator('body').textContent()).toContain('Static refresh fixture')
+    await refreshPopup.screenshot({ path: path.join(project, 'work/results/preview-refresh.png') })
+    expect(outbound.some(url => url.includes('refresh'))).toBe(false)
+    await refreshPopup.close()
 
     // Whole-file download genuinely exceeds the 2 MiB copy-window cap.
     const downloadPromise = page.waitForEvent('download')

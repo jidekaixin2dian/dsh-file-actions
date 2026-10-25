@@ -3,6 +3,7 @@ import path from 'node:path'
 import { createServer } from 'node:http'
 import { chromium, expect as browserExpect } from '@playwright/test'
 import { expect, it } from 'vitest'
+import { listenSafe } from './server.ts'
 
 // Browser interaction checks use deterministic Remote responses. The separate
 // runtime suite exercises real Host filesystem reads and sandboxed previews.
@@ -49,12 +50,13 @@ async function menuFixture() {
         }}};plugin.apply(ctx);
       </script></body></html>`)
   })
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  await listenSafe(server)
   const browser = await chromium.launch(process.platform === 'win32' ? { channel: 'msedge', headless: true } : { headless: true })
   const page = await browser.newPage({ locale: 'en-US', viewport: { width: 1100, height: 850 } })
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
-  await page.goto(`http://127.0.0.1:${(server.address() as any).port}/`)
+  try { await page.goto(`http://127.0.0.1:${(server.address() as any).port}/`) }
+  catch (error) { await browser.close(); await new Promise<void>(resolve => server.close(() => resolve())); throw error }
   return { page, errors, async dispose() { await browser.close(); await new Promise<void>(resolve => server.close(() => resolve())) } }
 }
 
@@ -470,9 +472,117 @@ it('the association list survives a reload so the next menu opens instantly', as
     await page.reload()
     await page.locator('#note').click({ button: 'right' })
     await browserExpect(page.locator('[data-dfa-item="openWith"]')).toHaveAttribute('aria-disabled', 'false')
-    // No Host walk at all: the stored answer is already there.
-    expect(await page.evaluate(() => (window as any).calls.apps)).toBe(0)
+    // Cached rows are available while a single background walk validates them.
+    await expect.poll(() => page.evaluate(() => (window as any).calls.apps)).toBe(1)
     expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('located, dotfile, extensionless and UNC references reach the correct Host paths', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    for (const [text, expected] of [['src/app.ts:42:7', '/workspace/src/app.ts'], ['notes.md#L42-L48', '/workspace/notes.md'],
+      ['.env', '/workspace/.env'], ['Dockerfile', '/workspace/Dockerfile']]) {
+      await page.locator('#reference').evaluate((el, value) => { el.textContent = value }, text)
+      await page.locator('#reference').click({ button: 'right' })
+      await browserExpect(page.locator('[data-dfa-item="open"]')).toBeVisible()
+      expect(await page.locator('.dfa-name').getAttribute('title')).toBe(expected)
+      await page.keyboard.press('Escape')
+    }
+    await page.locator('#link').evaluate(el => el.setAttribute('href', 'file://server/share/report.txt'))
+    await page.locator('#link').click({ button: 'right' })
+    await browserExpect(page.locator('.dfa-name')).toHaveAttribute('title', '//server/share/report.txt')
+  } finally { await fixture.dispose() }
+})
+
+it('filtered application hover and Enter choose the same visible row', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.evaluate(() => {
+      (window as any).apps = [{ id: 'base', name: 'Base' }, { id: 'one', name: 'Alpha One' },
+        { id: 'filler', name: 'Filler' }, { id: 'two', name: 'Alpha Two' }, { id: 'more', name: 'More' },
+        { id: 'three', name: 'Alpha Three' }, { id: 'tail', name: 'Tail' }, { id: 'last', name: 'Last' }]
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    await page.locator('.dfa-search').fill('Alpha')
+    await page.locator('[data-dfa-item="app:one"]').hover()
+    await browserExpect(page.locator('[data-dfa-item="app:one"]')).toHaveAttribute('data-focus', 'true')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => page.evaluate(() => (window as any).calls.opens)).toEqual([{ path: '/workspace/note.txt', application: 'one' }])
+  } finally { await fixture.dispose() }
+})
+
+it('stored associations paint immediately but invalid handlers cannot launch while validation is pending', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Visual Studio Code')
+    await expect.poll(() => page.evaluate(() => !!localStorage.getItem('dsh-file-actions.apps.v1'))).toBe(true)
+    await page.reload()
+    await page.evaluate(() => {
+      (window as any).state.delayApps = true
+      ;(window as any).apps = [{ id: 'cursor', name: 'Cursor' }]
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Visual Studio Code')
+    await page.locator('[data-dfa-item="editor"]').click()
+    await expect.poll(() => page.evaluate(() => typeof (window as any).releaseApps)).toBe('function')
+    expect(await page.evaluate(() => (window as any).calls.opens)).toEqual([])
+    await page.evaluate(() => { (window as any).state.delayApps = false; (window as any).releaseApps() })
+    await browserExpect(page.locator('.dfa-toast')).toContainText('associations changed')
+    expect(await page.evaluate(() => (window as any).calls.opens)).toEqual([])
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Cursor')
+  } finally { await fixture.dispose() }
+})
+
+it('failed application opens invalidate associations without retrying the action', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Visual Studio Code')
+    await page.evaluate(() => {
+      const w = window as any
+      w.apps = [{ id: 'cursor', name: 'Cursor' }]
+      w.ctx.remote.session.openWorkspacePath = async request => { w.calls.opens.push(request); return { ok: false } }
+    })
+    await page.locator('[data-dfa-item="editor"]').click()
+    await expect.poll(() => page.evaluate(() => (window as any).calls.apps)).toBe(2)
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Cursor')
+    expect(await page.evaluate(() => (window as any).calls.opens.length)).toBe(1)
+  } finally { await fixture.dispose() }
+})
+
+it('thumbnail eviction measures retained Blob bytes rather than short URL strings', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.evaluate(() => {
+      const w = window as any, size = 2 * 1024 * 1024
+      const head = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'
+      const data = new TextEncoder().encode(head + ' '.repeat(size - head.length))
+      w.blobs = new Map()
+      const create = URL.createObjectURL.bind(URL), revoke = URL.revokeObjectURL.bind(URL)
+      URL.createObjectURL = blob => { const url = create(blob); w.blobs.set(url, blob.size); return url }
+      URL.revokeObjectURL = url => { w.blobs.delete(url); revoke(url) }
+      w.ctx.remote.workspaceFiles.stat = async (_id, path) => ({ ok: true, value: { absolutePath: path, bytes: size, version: 'v1' } })
+      w.ctx.remote.workspaceFiles.readBytes = async () => ({ ok: true, value: { data, eof: true } })
+    })
+    for (let index = 0; index < 10; index++) {
+      await page.locator('#image').evaluate((el, index) => { (el as HTMLElement).dataset.fileActionsPath = `image${index}.svg` }, index)
+      await page.locator('#image').click({ button: 'right' })
+      await browserExpect(page.locator('.dfa-name')).toHaveText(`image${index}.svg`)
+      await browserExpect(page.locator('.dfa-thumb img')).toHaveCount(1)
+      await page.keyboard.press('Escape')
+    }
+    expect(await page.evaluate(() => [...(window as any).blobs.values()].reduce((n: number, size: number) => n + size, 0))).toBe(16 * 1024 * 1024)
+    expect(await page.evaluate(() => (window as any).blobs.size)).toBe(8)
   } finally { await fixture.dispose() }
 })
 

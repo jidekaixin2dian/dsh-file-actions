@@ -1,8 +1,14 @@
 import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
-export const sha = '1f81c047fc48fa190a683e469daa699857e9afe8'
-export const tag = 'dsh-v0.2.1-rc.3'
-export const directory = resolve(process.env.DFA_HOST || 'work/host')
+const hosts = {
+  'rc.2': '687f282e8625c6b8d11ff58211a90524be2e4317',
+  'rc.3': '1f81c047fc48fa190a683e469daa699857e9afe8',
+}
+export const version = process.env.DFA_HOST_VERSION || 'rc.3'
+export const sha = hosts[version]
+if (!sha) throw new Error(`Unsupported fixed host: ${version}`)
+export const tag = `dsh-v0.2.1-${version}`
+export const directory = resolve(process.env.DFA_HOST || `work/hosts/${version.replace('.', '')}`)
 export function run(program, args, cwd = process.cwd()) {
   const result = spawnSync(program, args, { cwd, stdio: 'inherit', env: { ...process.env, CI: 'true' } })
   if (result.status !== 0) throw new Error(`${program} failed (${result.status})`)

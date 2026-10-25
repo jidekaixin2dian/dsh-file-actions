@@ -14,7 +14,7 @@ const source = fs.readFileSync(path.join(here, '..', 'lib', 'client.js'), 'utf8'
 // their JSON shape instead of their identity.
 const same = (actual, expected) => assert.equal(JSON.stringify(actual), JSON.stringify(expected))
 
-function loadBundle() {
+function loadBundle(overrides = {}) {
   let captured = null
   const sandbox = {
     window: { __ModuleLoader__: { load: (definition) => { captured = definition } } },
@@ -40,6 +40,7 @@ function loadBundle() {
     setTimeout,
     clearTimeout,
     requestAnimationFrame: (fn) => setTimeout(fn, 0),
+    ...overrides,
   }
   vm.runInNewContext(source, sandbox, { filename: 'client.js' })
   assert.ok(captured, 'bundle did not register itself with the module loader')
@@ -378,13 +379,69 @@ test('save as reads the whole file in chunks until the Host reports the end', as
       calls.push(options)
       // Two full windows then the tail: a 5 MB video no longer dies on the Host cap.
       const more = calls.length < 3
-      return { data: new Uint8Array(more ? 2 : 1), eof: !more }
+      return { data: new Uint8Array(more ? 2 : 1), eof: !more, version: 'v1', absolutePath: 'D:\\r\\big.mp4',
+        offset: options.range.offset, bytes: 5 }
     },
   }
   await api.dispatch({ action: 'saveAs' }, { absolutePath: 'D:\\r\\big.mp4', displayPath: 'big.mp4' }, { bridge, t: zh, sessionId: 's' })
   assert.equal(calls.length, 3)
   assert.deepEqual(calls.map((call) => call.range.offset), [0, 2, 4])
   assert.equal(calls[0].range.length, 2 * 1024 * 1024)
+})
+
+test('outside copies fail closed when confirmation is absent, throws, rejects, or is not affirmative', async () => {
+  let reads = 0
+  const bridge = { readBytes: async () => { reads++; return { data: new Uint8Array(), eof: true } } }
+  for (const confirm of [undefined, () => { throw new Error('unavailable') }, async () => { throw new Error('unavailable') }, () => 'yes']) {
+    await api.dispatch({ action: 'copyContents' }, { absolutePath: '/outside/a.env', outsideWorkspace: true },
+      { bridge, t: en, sessionId: 's', confirm })
+  }
+  assert.equal(reads, 0)
+  await api.dispatch({ action: 'copyContents' }, { absolutePath: '/outside/a.env', outsideWorkspace: true },
+    { bridge, t: en, sessionId: 's', confirm: async () => true })
+  assert.equal(reads, 1)
+})
+
+test('whole-file reads reject changing identity and noncontiguous or incomplete responses', async () => {
+  const chunk = (offset) => ({ absolutePath: '/a.txt', version: 'v1', bytes: 4, offset,
+    data: new TextEncoder().encode(offset ? 'BB' : 'AA'), eof: offset > 0 })
+  for (const changed of [{ version: 'v2' }, { absolutePath: '/b.txt' }, { bytes: 5 }]) {
+    let calls = 0
+    const result = await api.readAllBytes({ readBytes: async () => calls++ ? { ...chunk(2), ...changed } : chunk(0) }, 's', '/a.txt')
+    same(result, { changed: true })
+  }
+  assert.equal(await api.readAllBytes({ readBytes: async () => chunk(2) }, 's', '/a.txt'), null)
+  same(await api.readAllBytes({ readBytes: async () => ({ ...chunk(0), eof: true }) }, 's', '/a.txt'), { changed: true })
+  same(await api.readAllBytes({ readBytes: async () => ({ ...chunk(0), bytes: 65 * 1024 * 1024 }) }, 's', '/a.txt'), { tooLarge: true })
+  let calls = 0
+  const valid = await api.readAllBytes({ readBytes: async () => chunk(calls++ * 2) }, 's', '/a.txt')
+  assert.equal(new TextDecoder().decode(valid), 'AABB')
+})
+
+test('invalid UTF-8 never reaches the clipboard, while Unicode text is preserved', async () => {
+  const copied = []
+  const isolated = loadBundle({ navigator: { clipboard: { writeText: async text => copied.push(text) } } }).__internals
+  const copy = async data => isolated.dispatch({ action: 'copyContents' }, { absolutePath: '/a.txt' },
+    { bridge: { readBytes: async () => ({ data, eof: true }) }, t: en, sessionId: 's' })
+  await copy(new Uint8Array([0xd6, 0xd0, 0xce, 0xc4]))
+  assert.equal(copied.length, 0)
+  await copy(new TextEncoder().encode("中文 é 😀 O'Connor"))
+  assert.deepEqual(copied, ["中文 é 😀 O'Connor"])
+})
+
+test('UNC file URLs retain their absolute identity and encoded names', () => {
+  assert.equal(api.pathFromHref('file://server/share/report.txt'), '//server/share/report.txt')
+  assert.equal(api.pathFromHref('file://server/share/%E4%B8%AD%E6%96%87%20a.txt'), '//server/share/中文 a.txt')
+  assert.equal(api.isAbsolutePath(api.pathFromHref('file://server/share/report.txt')), true)
+  assert.equal(api.pathFromHref('file://localhost/C:/a%20b.txt'), 'C:/a b.txt')
+})
+
+test('path heuristics understand located references, dotfiles, and known extensionless files', () => {
+  for (const path of ['src/app.ts:42:7', 'notes.md#L42-L48', '.env', 'Dockerfile']) {
+    assert.equal(api.looksLikePath(path), true, path)
+    assert.equal(api.softPath(path), true, path)
+  }
+  assert.equal(api.looksLikePath('ordinary words'), false)
 })
 
 test('soft sources must look like a real file', () => {
