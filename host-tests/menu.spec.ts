@@ -7,7 +7,7 @@ import { listenSafe } from './server.ts'
 
 // Browser interaction checks use deterministic Remote responses. The separate
 // runtime suite exercises real Host filesystem reads and sandboxed previews.
-async function menuFixture() {
+async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Array<{ id: string; name: string }> } = {}) {
   const client = fs.readFileSync(path.join(process.env.DFA_PROJECT!, 'lib/client.js'), 'utf8')
   const server = createServer((req, res) => {
     if (req.url === '/client.js') { res.setHeader('content-type', 'text/javascript'); res.end(client); return }
@@ -22,7 +22,7 @@ async function menuFixture() {
       <code id="guess" tabindex="0">guess.txt</code><span id="prose">missing-prose.txt</span>
       <span id="plain" tabindex="0">plain.txt</span>
       <code id="reference" tabindex="0">note.txt</code>
-      <pre><code id="fenced">note.txt</code></pre>
+      <pre><code id="fenced">fenced-only.txt</code></pre>
       <a id="link" href="https://example.com/docs">Documentation</a>
       <div id="tree-row" class="row" role="button" title="C:/workspace/note.txt">note.txt</div></div>
       <script>window.__ModuleLoader__={load(def){window.plugin=def.factory()}};</script>
@@ -32,6 +32,8 @@ async function menuFixture() {
       document.addEventListener('contextmenu',e=>window.lastPrevented=e.defaultPrevented);
       window.apps=[{id:'player',name:'Media Player'},{id:'code',name:'Visual Studio Code'},
         {id:'notepad',name:'Notepad',default:true},...Array.from({length:7},(_,i)=>({id:'other'+i,name:'Other '+i}))];
+      Object.assign(window.state, ${JSON.stringify(initial.state || {})});
+      if (${JSON.stringify(Boolean(initial.apps))}) window.apps=${JSON.stringify(initial.apps || [])};
       window.ctx={effect(fn){window.cleanup=fn()},sessions:{list:{getSnapshot:()=>({byId:{
         active:{id:'active',cwd:'/workspace',retainedBy:{mainView:1}}}})}},remote:{
         session:{openWorkspacePath:async request=>{calls.opens.push(request);return {ok:true,value:{opened:true}}},
@@ -55,6 +57,9 @@ async function menuFixture() {
   const page = await browser.newPage({ locale: 'en-US', viewport: { width: 1100, height: 850 } })
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
+  // Park away from fixture controls before navigation: Chromium may emit a
+  // pointerover during the first paint, which would warm a supposedly cold case.
+  await page.mouse.move(1090, 840)
   try { await page.goto(`http://127.0.0.1:${(server.address() as any).port}/`) }
   catch (error) { await browser.close(); await new Promise<void>(resolve => server.close(() => resolve())); throw error }
   return { page, errors, async dispose() { await browser.close(); await new Promise<void>(resolve => server.close(() => resolve())) } }
@@ -152,10 +157,9 @@ it('hover prefetches the association list and a second menu reuses it', async ()
   } finally { await fixture.dispose() }
 })
 it('late associations keep the hovered row in place; a failed lookup leaves no dead row', async () => {
-  const fixture = await menuFixture()
+  const fixture = await menuFixture({ state: { delayApps: true } })
   const { page, errors } = fixture
   try {
-    await page.evaluate(() => { (window as any).state.delayApps = true })
     await page.locator('#note').click({ button: 'right' })
     // Both rows hold their slots while the query runs, so the rows below do not jump
     // when the answer lands. Neither row claims anything about the file type yet.
@@ -497,14 +501,11 @@ it('located, dotfile, extensionless and UNC references reach the correct Host pa
 })
 
 it('filtered application hover and Enter choose the same visible row', async () => {
-  const fixture = await menuFixture()
+  const fixture = await menuFixture({ apps: [{ id: 'base', name: 'Base' }, { id: 'one', name: 'Alpha One' },
+    { id: 'filler', name: 'Filler' }, { id: 'two', name: 'Alpha Two' }, { id: 'more', name: 'More' },
+    { id: 'three', name: 'Alpha Three' }, { id: 'tail', name: 'Tail' }, { id: 'last', name: 'Last' }] })
   const { page } = fixture
   try {
-    await page.evaluate(() => {
-      (window as any).apps = [{ id: 'base', name: 'Base' }, { id: 'one', name: 'Alpha One' },
-        { id: 'filler', name: 'Filler' }, { id: 'two', name: 'Alpha Two' }, { id: 'more', name: 'More' },
-        { id: 'three', name: 'Alpha Three' }, { id: 'tail', name: 'Tail' }, { id: 'last', name: 'Last' }]
-    })
     await page.locator('#note').click({ button: 'right' })
     await page.locator('[data-dfa-item="openWith"]').hover()
     await page.locator('.dfa-search').fill('Alpha')

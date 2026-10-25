@@ -15,7 +15,8 @@ export async function listenSafe(server: Server) {
       })
       return
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw error
+      // Windows excluded TCP ranges report EACCES rather than EADDRINUSE.
+      if (!['EADDRINUSE', 'EACCES'].includes((error as NodeJS.ErrnoException).code || '')) throw error
     }
   }
   throw new Error('Could not reserve a safe browser fixture port')
