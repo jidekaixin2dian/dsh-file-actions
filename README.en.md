@@ -119,6 +119,10 @@ The default pinned host is DSH **0.2.1-rc.3** (`1f81c047fc48fa190a683e469daa6998
 
 The browser suite uses the actual client bundle and real WorkspaceFiles over synthetic references. It checks Session identity, sandboxed script isolation, a real 3 MiB download and unload behavior. A separate browser suite uses deterministic Remote responses for native-menu fallback, preferences, asynchronous stability, search and large text. This is not a complete Desktop or OS application-launch test. Optional full-Web drivers and historical assertion counts are documented in [test-e2e](test-e2e/README.md).
 
+Use one PR per change set. Full CI runs for PRs targeting main and pushes to main. New commits cancel obsolete checks for the same PR; tags do not repeat the full suite, while Releases retain archive integrity checks.
+
+Auto-merge requires explicit opt-in for each PR; passing contributor checks never opts it in automatically. After review, the owner can run `node scripts/enable-owner-auto-merge.mjs <PR number>` for an owner-authored, same-repository, non-draft PR. External and bot PRs retain a manual maintainer decision. This helper preserves all four required checks and does not publish releases.
+
 ## Releases
 
 - [Latest release](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest)

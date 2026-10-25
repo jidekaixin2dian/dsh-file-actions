@@ -122,6 +122,10 @@ npm run pack:check
 
 浏览器套件把实际 client bundle 与真实 WorkspaceFiles 接到合成文件引用上，检查会话身份、预览脚本隔离、真实 3 MiB 下载及卸载行为；另用确定性 Remote 响应检查右键回退、首选应用、异步菜单稳定性、搜索和大字号。这不是完整 Desktop 或外部应用启动验收。可选完整 Web 驱动和历史断言计数见 [test-e2e](test-e2e/README.md)。
 
+一批修改走一个 PR。完整 CI 仅在面向 main 的 PR 和 main 提交运行；同一 PR 的新提交会取消过期检查，tag 不重复运行整套测试，Release 仍执行归档完整性校验。
+
+自动合并是逐个 PR 明确开启的选项，不会因为贡献者的检查通过就自动合并。维护者审核后，可运行 `node scripts/enable-owner-auto-merge.mjs <PR编号>`，它只接受仓库所有者本人创建的同仓库、非草稿 PR，等待保护规则满足后 squash 合并。外部和 bot PR 保留人工审核及合并决定；辅助脚本不绕过四项必需检查，也不自动发布版本。
+
 ## 版本
 
 - [最新版本](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest)
