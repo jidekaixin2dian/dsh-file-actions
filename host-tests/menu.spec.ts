@@ -182,7 +182,7 @@ it('late associations keep the hovered row in place; a failed lookup leaves no d
     await browserExpect(reveal).toHaveAttribute('data-focus', 'true')
     await page.keyboard.press('Escape')
     await page.reload()
-    await page.evaluate(() => { (window as any).state.apps = 'failed' })
+    await page.evaluate(() => { (window as any).state.apps = 'failed'; (window as any).state.delayApps = false })
     await page.locator('#note').click({ button: 'right' })
     // The Host query throws as soon as one registered handler is broken, and no retry
     // can fix that: both association rows disappear instead of dead-ending the menu.
