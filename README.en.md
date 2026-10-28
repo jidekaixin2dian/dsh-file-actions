@@ -17,7 +17,7 @@ Right-click a file or link to open it, choose an application, reveal it, copy it
 
 ## Install and update
 
-Requires **DSH >=0.2.1-rc.2 and Node >=24**. CI verifies DSH rc.2 / rc.3.
+Requires **DSH >=0.2.1-rc.2 and Node >=24**. CI verifies DSH rc.2 / rc.3 / rc.4.
 
 Search for **dsh-file-actions** in the marketplace and verify author **jidekaixin2dian**. Existing users can check updates under installed plugins. Catalog and registry mirrors may take time to refresh.
 
@@ -51,6 +51,8 @@ dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions
 3. Enlarge image thumbnails or view supported documents, audio and video in the browser.
 
 Keyboard: `Shift+F10` opens the menu, `↑ ↓` move, `→` enters a submenu, `Enter` runs and `Esc` closes. `Shift+right-click` gives the page's own handler priority.
+
+The marketplace checks versions and installs after your click; it does not silently upgrade in the background. Restart DSH when requested.
 
 ## Boundaries
 

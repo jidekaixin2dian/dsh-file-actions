@@ -17,7 +17,7 @@
 
 ## 安装与更新
 
-需要 **DSH >=0.2.1-rc.2、Node >=24**；持续验证 DSH rc.2 / rc.3。
+需要 **DSH >=0.2.1-rc.2、Node >=24**；持续验证 DSH rc.2 / rc.3 / rc.4。
 
 在插件市场搜索 **dsh-file-actions**，确认作者为 **jidekaixin2dian** 后安装；已有用户在「已安装」中检查更新。市场数据与 npm 镜像可能有同步延迟。
 
@@ -53,6 +53,8 @@ dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions
 3. 图片支持缩略图与放大预览；支持的文档、音视频可在浏览器中查看。
 
 键盘：`Shift+F10` 打开菜单，`↑ ↓` 移动，`→` 进入子菜单，`Enter` 执行，`Esc` 关闭。`Shift+右键` 优先交给页面原有菜单。
+
+更新由市场检查并在你点击后安装，不会静默后台升级；需要时按提示重启 DSH。
 
 ## 使用边界
 
