@@ -48,7 +48,7 @@ jobs:
       - name: Host filesystem and browser regression
         run: npm run test:host
         env:
-          DFA_RESULTS: work/results/rc3
+          DFA_RESULTS: work/results/rc4
       - name: Prepare minimum supported host
         run: npm run setup:host
         env:
@@ -58,6 +58,15 @@ jobs:
         env:
           DFA_HOST_VERSION: rc.2
           DFA_RESULTS: work/results/rc2
+      - name: Prepare previous supported host
+        run: npm run setup:host
+        env:
+          DFA_HOST_VERSION: rc.3
+      - name: Previous host filesystem and browser regression
+        run: npm run test:host
+        env:
+          DFA_HOST_VERSION: rc.3
+          DFA_RESULTS: work/results/rc3
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

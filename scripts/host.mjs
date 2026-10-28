@@ -3,8 +3,9 @@ import { spawnSync } from 'node:child_process'
 const hosts = {
   'rc.2': '687f282e8625c6b8d11ff58211a90524be2e4317',
   'rc.3': '1f81c047fc48fa190a683e469daa699857e9afe8',
+  'rc.4': '504a01a9578abc2c6f1fb896b1dc322c9fe24f66',
 }
-export const version = process.env.DFA_HOST_VERSION || 'rc.3'
+export const version = process.env.DFA_HOST_VERSION || 'rc.4'
 export const sha = hosts[version]
 if (!sha) throw new Error(`Unsupported fixed host: ${version}`)
 export const tag = `dsh-v0.2.1-${version}`

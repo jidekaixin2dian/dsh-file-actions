@@ -1,6 +1,6 @@
 {
   "name": "@jidekaixin2dian/dsh-file-actions",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "File and link actions for DeepSeek Harness: open, choose applications, reveal, copy paths or contents, and save files from the chat.",
   "icon": "icon.svg",
   "type": "module",
