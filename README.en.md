@@ -2,11 +2,13 @@
 
 **Turn a file reference in your conversation into the next action.**
 
-[中文](README.md) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
+[中文](README.md) · [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.18) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
 
-Right-click a file or link to open it, choose an application, reveal it, copy it or save it. Works with chat references, delivery cards, tool results and sidebars that expose file paths.
+Once a model gives you a file, the next step is usually to open it, keep editing or take its contents elsewhere. File Actions puts application choices, reveal, copy, preview and save into one context menu across chat references, delivery cards, tool results and sidebars that expose file paths.
 
 ![File menu appearance example](assets/preview-glass.png)
+
+## Continue from a file reference
 
 | Your next step | Available actions |
 |---|---|
@@ -14,6 +16,14 @@ Right-click a file or link to open it, choose an application, reveal it, copy it
 | Locate and reference | Reveal in the file manager; copy paths, names or references with line numbers |
 | View and export | Preview supported documents and media, copy text, save a local file |
 | Share a link | Open, copy the URL or text, copy as Markdown |
+
+## Downloads
+
+| GitHub release assets · all releases | npm 0.1.17 · past 7 days |
+|---|---|
+| [**350 downloads**](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | [**191 downloads**](https://api.npmjs.org/versions/@jidekaixin2dian%2Fdsh-file-actions/last-week) |
+
+Snapshot: **2026-10-29**. GitHub counts release-asset requests, including checksums; npm counts downloads of the named version. Requests can include repeat installs and automation, so these are not unique-user counts and the two columns are not added together. Click a number for its live source.
 
 ## Install and update
 

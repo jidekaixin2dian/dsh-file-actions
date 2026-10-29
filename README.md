@@ -2,11 +2,13 @@
 
 **从聊天里的文件引用，直接到你要做的操作。**
 
-[English](README.en.md) · [插件市场](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [下载](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [更新记录](CHANGELOG.md)
+[English](README.en.md) · [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.18) · [插件市场](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [下载](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [更新记录](CHANGELOG.md)
 
-右键文件名或链接，即可打开、选择应用、定位、复制与另存。支持聊天引用、交付卡片、工具结果，以及提供文件路径的侧栏。
+模型给出文件后，下一步通常是打开、继续编辑，或把内容带走。File Actions 把打开方式、文件定位、路径与内容复制、预览和另存放进一个右键菜单，覆盖聊天引用、交付卡片、工具结果及提供文件路径的侧栏。
 
 ![文件右键菜单外观示例](assets/preview-glass.png)
+
+## 从文件引用接着做
 
 | 想做什么 | 可以怎么做 |
 |---|---|
@@ -14,6 +16,14 @@
 | 找到文件与引用 | 在文件管理器定位，复制绝对 / 相对路径、文件名或带行号引用 |
 | 查看与带走内容 | 预览支持的文档、图片或媒体；复制文本；另存为本地文件 |
 | 分享链接 | 打开网页，复制链接、链接文字或 Markdown |
+
+## 下载情况
+
+| GitHub Release 资源 · 历史累计 | npm 0.1.17 · 近 7 日 |
+|---|---|
+| [**350 次下载**](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | [**191 次下载**](https://api.npmjs.org/versions/@jidekaixin2dian%2Fdsh-file-actions/last-week) |
+
+统计快照：**2026-10-29**。GitHub 包含安装包、校验文件等资源请求；npm 仅统计表中版本。下载可能包含重复安装和自动化请求，不代表独立用户数，两列不相加。点击数字可查看实时来源。
 
 ## 安装与更新
 
