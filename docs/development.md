@@ -37,7 +37,7 @@ npm run test:host
 npm run pack:check
 ```
 
-The default pinned host is DSH **0.2.1-rc.4** (`1f81c047fc48fa190a683e469daa699857e9afe8`). Set `DFA_HOST_VERSION=rc.2` to verify the minimum supported host (`687f282e8625c6b8d11ff58211a90524be2e4317`). `DFA_HOST` can reuse the matching clean checkout. Windows uses headless Edge; Linux needs `npx --no-install playwright install --with-deps chromium`. CI covers rc.2/rc.3/rc.4 on both systems. The plugin still has no runtime dependencies or build step.
+The default pinned host is DSH **0.2.1-rc.4** (`504a01a9578abc2c6f1fb896b1dc322c9fe24f66`). Set `DFA_HOST_VERSION=rc.2` to verify the minimum supported host (`687f282e8625c6b8d11ff58211a90524be2e4317`). `DFA_HOST` can reuse the matching clean checkout. Windows uses headless Edge; Linux needs `npx --no-install playwright install --with-deps chromium`. CI covers rc.2/rc.3/rc.4 on both systems. The plugin still has no runtime dependencies or build step.
 
 The browser suite uses the actual client bundle and real WorkspaceFiles over synthetic references. It checks Session identity, sandboxed script isolation, a real 3 MiB download and unload behavior. A separate browser suite uses deterministic Remote responses for native-menu fallback, preferences, asynchronous stability, search and large text. This is not a complete Desktop or OS application-launch test. Optional full-Web drivers and historical assertion counts are documented in [test-e2e](../test-e2e/README.md).
 

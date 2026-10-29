@@ -429,6 +429,53 @@ test('invalid UTF-8 never reaches the clipboard, while Unicode text is preserved
   assert.deepEqual(copied, ["中文 é 😀 O'Connor"])
 })
 
+test('referenced text selects complete lines and preserves their internal line endings', () => {
+  const text = 'first\r\n中文 😀\r\nthird\r\n'
+  assert.equal(api.referencedText(text, { line: 2 }), '中文 😀')
+  assert.equal(api.referencedText(text, { line: 2, endLine: 3 }), '中文 😀\r\nthird')
+  assert.equal(api.referencedText('a\rb\rc', { line: 2, endLine: 3 }), 'b\rc')
+  assert.equal(api.referencedText('\n\n', { line: 2 }), '')
+  for (const location of [{ line: 0 }, { line: -1 }, { line: 1.5 }, { line: Infinity },
+    { line: 3, endLine: 2 }, { line: 4 }, { line: 1, endLine: 4 }]) {
+    assert.equal(api.referencedText(text, location), null)
+  }
+  assert.equal(api.referencedText('', { line: 1 }), null)
+})
+
+test('only valid located text references offer copying their referenced lines', () => {
+  const actions = (path, location) => api.buildMenuModel({ absolutePath: path, location, t: en })
+    .sections.flat().map(item => item.action)
+  assert.ok(actions('/note.txt', { line: 2, endLine: 3 }).includes('copyLines'))
+  for (const [path, location] of [['/note.txt', undefined], ['/image.png', { line: 1 }],
+    ['/note.txt', { line: 0 }], ['/note.txt', { line: 3, endLine: 2 }]]) {
+    assert.ok(!actions(path, location).includes('copyLines'))
+  }
+})
+
+test('copy referenced lines retains confirmation, size and encoding gates and rejects stale locations', async () => {
+  const copied = []
+  let reads = 0
+  const isolated = loadBundle({ navigator: { clipboard: { writeText: async text => copied.push(text) } } }).__internals
+  const target = { absolutePath: '/note.txt', line: 2, endLine: 3 }
+  const bridge = { readBytes: async () => { reads++; return {
+    data: new TextEncoder().encode('one\ntwo\nthree\nfour\n'), eof: true,
+  } } }
+  const context = { bridge, t: en, sessionId: 's' }
+  await isolated.dispatch({ action: 'copyLines' }, target, context)
+  assert.deepEqual(copied, ['two\nthree'])
+  await isolated.dispatch({ action: 'copyLines' }, { ...target, endLine: 8 }, context)
+  assert.equal(copied.length, 1)
+  const before = reads
+  await isolated.dispatch({ action: 'copyLines' }, { ...target, outsideWorkspace: true }, { ...context, confirm: () => false })
+  await isolated.dispatch({ action: 'copyLines' }, { ...target, bytes: api.MAX_COPY_BYTES + 1 }, context)
+  assert.equal(reads, before)
+  for (const result of [{ data: new Uint8Array([0xff]), eof: true },
+    { data: new TextEncoder().encode('one\ntwo'), eof: false }]) {
+    await isolated.dispatch({ action: 'copyLines' }, target, { ...context, bridge: { readBytes: async () => result } })
+  }
+  assert.equal(copied.length, 1)
+})
+
 test('UNC file URLs retain their absolute identity and encoded names', () => {
   assert.equal(api.pathFromHref('file://server/share/report.txt'), '//server/share/report.txt')
   assert.equal(api.pathFromHref('file://server/share/%E4%B8%AD%E6%96%87%20a.txt'), '//server/share/中文 a.txt')

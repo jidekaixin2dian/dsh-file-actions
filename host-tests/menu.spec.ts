@@ -65,6 +65,153 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
   return { page, errors, async dispose() { await browser.close(); await new Promise<void>(resolve => server.close(() => resolve())) } }
 }
 
+it('application search keeps cursor editing and IME confirmation inside the input', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    const input = page.locator('.dfa-search')
+    await input.fill('Other')
+    await input.press('ArrowLeft')
+    await browserExpect(input).toBeFocused()
+    expect(await input.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe(4)
+    await input.press('Home')
+    expect(await input.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe(0)
+    const accepted = await input.evaluate(el => el.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter', isComposing: true, keyCode: 229, bubbles: true, cancelable: true,
+    })))
+    expect(accepted).toBe(true)
+    await browserExpect(input).toBeVisible()
+    expect(await page.evaluate(() => (window as any).calls.opens)).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('background application validation retains the filter, selection and input focus', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Visual Studio Code')
+    await expect.poll(() => page.evaluate(() => !!localStorage.getItem('dsh-file-actions.apps.v1'))).toBe(true)
+    await page.reload()
+    await page.evaluate(() => {
+      (window as any).state.delayApps = true
+      ;(window as any).apps.push({ id: 'new', name: 'New Editor' })
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    await page.locator('.dfa-search').fill('Other')
+    await page.locator('.dfa-search').press('ArrowDown')
+    const selected = await page.locator('.dfa-sub [data-focus="true"]').getAttribute('data-dfa-item')
+    await expect.poll(() => page.evaluate(() => typeof (window as any).releaseApps)).toBe('function')
+    await page.evaluate(() => { (window as any).state.delayApps = false; (window as any).releaseApps() })
+    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toContainText('Open with')
+    await expect.poll(() => page.locator('[data-dfa-item="app:new"]').count()).toBe(1)
+    await browserExpect(page.locator('.dfa-search')).toHaveValue('Other')
+    await browserExpect(page.locator('.dfa-search')).toBeFocused()
+    expect(await page.locator('.dfa-sub [data-focus="true"]').getAttribute('data-dfa-item')).toBe(selected)
+    await page.keyboard.press('Enter')
+    await expect.poll(() => page.evaluate(() => (window as any).calls.opens)).toEqual([
+      { path: '/workspace/note.txt', application: selected!.slice(4) },
+    ])
+  } finally { await fixture.dispose() }
+})
+
+for (const change of ['removing', 'renaming']) {
+it(`${change} the selected application during validation cannot open a different application`, async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await expect.poll(() => page.evaluate(() => !!localStorage.getItem('dsh-file-actions.apps.v1'))).toBe(true)
+    await page.reload()
+    await page.evaluate(change => {
+      (window as any).state.delayApps = true
+      const w = window as any
+      if (change === 'removing') w.apps = w.apps.filter(app => app.id !== 'other0')
+      else w.apps.find(app => app.id === 'other0').name = 'Renamed application'
+    }, change)
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    await page.locator('.dfa-search').fill('Other')
+    await expect.poll(() => page.evaluate(() => typeof (window as any).releaseApps)).toBe('function')
+    await page.evaluate(() => { (window as any).state.delayApps = false; (window as any).releaseApps() })
+    await browserExpect(page.locator('.dfa-sub')).toHaveCount(0)
+    await page.keyboard.press('Enter')
+    expect(await page.evaluate(() => (window as any).calls.opens)).toEqual([])
+  } finally { await fixture.dispose() }
+})
+}
+
+it('inline tooltips retain matching line labels without borrowing another file location', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.evaluate(() => {
+      (window as any).copied = []
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => (window as any).copied.push(text) } })
+      const button = document.createElement('button')
+      button.title = '/workspace/note.txt'
+      button.textContent = 'note.txt#L2-L3'
+      document.querySelector('#reference')!.replaceChildren(button)
+    })
+    await page.locator('#reference button').click({ button: 'right' })
+    await browserExpect(page.locator('.dfa-loc')).toContainText('lines 2–3')
+    await browserExpect(page.locator('[data-dfa-item="copyLines"]')).toBeVisible()
+    await page.locator('[data-dfa-item="copyReference"]').click()
+    expect(await page.evaluate(() => (window as any).copied)).toEqual(['note.txt#L2-L3'])
+    await page.locator('#reference button').evaluate(el => { el.textContent = 'other.txt#L2-L3' })
+    await page.locator('#reference button').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="open"]')).toBeVisible()
+    await browserExpect(page.locator('[data-dfa-item="copyLines"]')).toHaveCount(0)
+  } finally { await fixture.dispose() }
+})
+
+it('keyboard opening a different reference replaces the existing menu', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#note').focus()
+    await page.keyboard.press('Shift+F10')
+    await browserExpect(page.locator('.dfa-name')).toHaveText('note.txt')
+    await page.locator('#image2').focus()
+    await page.keyboard.press('Shift+F10')
+    await browserExpect(page.locator('[data-dfa-menu="1"]')).toHaveCount(1)
+    await browserExpect(page.locator('.dfa-name')).toHaveText('image2.svg')
+    await page.keyboard.press('Escape')
+    await browserExpect(page.locator('[data-dfa-menu]')).toHaveCount(0)
+  } finally { await fixture.dispose() }
+})
+
+it('absolute references inside the workspace offer a canonical relative path', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.evaluate(() => {
+      (window as any).copied = []
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => (window as any).copied.push(text) } })
+    })
+    await page.locator('#note').evaluate(el => { (el as HTMLElement).dataset.fileActionsPath = '/workspace/src/note.txt' })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="copyRelPath"]').click()
+    expect(await page.evaluate(() => (window as any).copied)).toEqual(['src/note.txt'])
+  } finally { await fixture.dispose() }
+})
+
+it('clicking the full-size preview dismisses only the preview', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#image').click({ button: 'right' })
+    await page.locator('.dfa-thumb img').click()
+    await browserExpect(page.locator('.dfa-lightbox')).toBeVisible()
+    await page.locator('.dfa-lightbox img').click()
+    await browserExpect(page.locator('.dfa-lightbox')).toHaveCount(0)
+    await browserExpect(page.locator('[data-dfa-menu="1"]')).toHaveCount(1)
+  } finally { await fixture.dispose() }
+})
+
 it('cold guesses and Shift preserve the native event; explicit missing files offer a working retry', async () => {
   const fixture = await menuFixture()
   const { page, errors } = fixture

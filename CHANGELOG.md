@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.18 — 2026-10-30
+
+- 新增「复制引用行」：带行号的文本引用可复制对应整行或行段；保留原始内部换行，沿用 UTF-8、2 MiB 与工作区外确认限制；超出文件范围时拒绝复制。
+- 修复应用搜索框的光标按键与输入法确认、后台关联更新丢失搜索状态、键盘重复打开遗留菜单、绝对引用缺少相对路径复制，以及点击大图连带关闭菜单。
+- Add **Copy referenced lines**, with the existing text-copy limits and explicit errors for invalid locations. Preserve application search state during validation and fix keyboard editing, duplicate menus, relative paths and preview dismissal.
+
 ## 0.1.17 — 2026-10-28
 
 - 发布与更新维护：明确 npm 安装、GitHub 来源迁移、市场检测与重启步骤；保留既有运行时行为。

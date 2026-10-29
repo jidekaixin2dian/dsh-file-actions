@@ -2,11 +2,13 @@
 
 **从聊天里的文件引用，直接到你要做的操作。**
 
-[English](README.en.md) · [插件市场](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [下载](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [更新记录](CHANGELOG.md)
+[English](README.en.md) · [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.18) · [插件市场](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [下载](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [更新记录](CHANGELOG.md)
 
-右键文件名或链接，即可打开、选择应用、定位、复制与另存。支持聊天引用、交付卡片、工具结果，以及提供文件路径的侧栏。
+模型给出文件后，下一步通常是打开、继续编辑，或把内容带走。File Actions 把打开方式、文件定位、路径与内容复制、预览和另存放进一个右键菜单，覆盖聊天引用、交付卡片、工具结果及提供文件路径的侧栏。
 
 ![文件右键菜单外观示例](assets/preview-glass.png)
+
+## 从文件引用接着做
 
 | 想做什么 | 可以怎么做 |
 |---|---|
@@ -14,6 +16,14 @@
 | 找到文件与引用 | 在文件管理器定位，复制绝对 / 相对路径、文件名或带行号引用 |
 | 查看与带走内容 | 预览支持的文档、图片或媒体；复制文本；另存为本地文件 |
 | 分享链接 | 打开网页，复制链接、链接文字或 Markdown |
+
+## 下载情况
+
+| GitHub Release 资源 · 历史累计 | npm 0.1.17 · 近 7 日 |
+|---|---|
+| [**350 次下载**](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | [**191 次下载**](https://api.npmjs.org/versions/@jidekaixin2dian%2Fdsh-file-actions/last-week) |
+
+统计快照：**2026-10-29**。GitHub 包含安装包、校验文件等资源请求；npm 仅统计表中版本。下载可能包含重复安装和自动化请求，不代表独立用户数，两列不相加。点击数字可查看实时来源。
 
 ## 安装与更新
 
@@ -51,6 +61,9 @@ dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions
 1. 在聊天文件名、文件卡片或文件树上右键。明确引用可直接操作，普通文字里的疑似路径会先验证。
 2. 选择「打开方式」可搜索应用，点击星标保存当前文件类型的首选；不会改变系统默认应用。
 3. 图片支持缩略图与放大预览；支持的文档、音视频可在浏览器中查看。
+4. 对 `src/app.ts:42:7` 或 `notes.md#L42-L48` 这类文本引用，可选「复制引用行」复制该行或该段，不必复制整个文件。行号超出当前文件范围时会提示，不会改为复制全文。
+
+该选项仅在引用仍保留行号时出现；宿主若把链接渲染为仅暴露路径的按钮，插件无法恢复已隐藏的行号。
 
 键盘：`Shift+F10` 打开菜单，`↑ ↓` 移动，`→` 进入子菜单，`Enter` 执行，`Esc` 关闭。`Shift+右键` 优先交给页面原有菜单。
 
@@ -59,7 +72,7 @@ dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions
 ## 使用边界
 
 - 打开与定位沿用 DSH 官方接口和路径授权；应用列表取决于系统关联。失效关联可能导致列表不可用，插件不会修改注册表。
-- 复制内容仅支持 **有效 UTF-8、最大 2 MiB**。工作区外复制需要明确确认；确认不可用时取消读取。
+- 复制内容与引用行仅支持 **有效 UTF-8、文件最大 2 MiB**。引用行按整行复制，保留所选行之间的原始换行；列号不裁剪内容。工作区外复制需要明确确认；确认不可用时取消读取。
 - 另存为和浏览器预览最多读取 **64 MiB**，分块内容不一致时中止；不是文件系统原子快照。
 - HTML / SVG 默认静态预览并阻止脚本和外部资源。仅在信任文件后启用脚本与联网；预览仍与 DSH 页面隔离。相对资源可能不可用，点击文件内链接属于主动导航。
 - 编辑器打开暂不跳到行列位置；另存为使用浏览器下载行为。插件用于 DSH 图形 / Web 界面，终端界面不适用。

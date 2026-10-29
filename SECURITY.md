@@ -6,7 +6,9 @@ can include paths outside a workspace when the host's composed filesystem permit
 them; the workspace label is not a containment guarantee. Copying the contents of
 a file outside the session workspace requires an explicit confirmation, because
 chat text can plant absolute paths; a declined or unavailable confirmation reads
-no bytes. Invalid UTF-8 is rejected rather than silently replaced. Chunked exports
+no bytes. The same gates apply to copying referenced lines: the file must fit the
+2 MiB text-copy cap, and invalid or out-of-file line ranges never fall back to
+copying the full file. Invalid UTF-8 is rejected rather than silently replaced. Chunked exports
 check file identity, version, offsets and reported size, stopping on changes;
 this detects inconsistent responses but does not create an atomic Host snapshot.
 
