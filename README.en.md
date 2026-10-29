@@ -49,6 +49,9 @@ dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions
 1. Right-click a file reference, delivery card or file tree. Explicit references open directly; guessed text paths are verified first.
 2. Search **Open with** and star an application to remember it for that file type. OS defaults stay unchanged.
 3. Enlarge image thumbnails or view supported documents, audio and video in the browser.
+4. For text references such as `src/app.ts:42:7` or `notes.md#L42-L48`, choose **Copy referenced lines** to copy that line or range. Locations beyond the current file show an error instead of copying the whole file.
+
+The option appears only when the reference retains its line numbers. If the host renders a link as a button exposing only its path, hidden line information cannot be recovered.
 
 Keyboard: `Shift+F10` opens the menu, `↑ ↓` move, `→` enters a submenu, `Enter` runs and `Esc` closes. `Shift+right-click` gives the page's own handler priority.
 
@@ -57,7 +60,7 @@ The marketplace checks versions and installs after your click; it does not silen
 ## Boundaries
 
 - File operations use official DSH APIs and path authorization. Application lists depend on system associations; the plugin does not repair registry entries.
-- Copy contents accepts **valid UTF-8 up to 2 MiB**. Copies outside the workspace require explicit confirmation; unavailable confirmation cancels the read.
+- Copying contents or referenced lines requires **valid UTF-8 and a file no larger than 2 MiB**. Referenced lines are copied in full, retaining internal line endings; column numbers do not trim the text. Copies outside the workspace require explicit confirmation; unavailable confirmation cancels the read.
 - Save and browser previews read up to **64 MiB** and stop on inconsistent chunks. This is not an atomic filesystem snapshot.
 - HTML / SVG previews block scripts and external resources by default. Enable scripts and networking only for a trusted file; the preview remains isolated from DSH. Relative assets may not work. Clicking a document link is an explicit navigation.
 - Editor actions do not jump to line/column positions. Save uses browser download behavior. The plugin needs the graphical / Web UI.

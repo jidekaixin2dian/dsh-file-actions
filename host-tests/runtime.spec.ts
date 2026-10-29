@@ -23,7 +23,7 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     window.openerReadable = !!window.opener;
   </script>Preview</body></html>`
   fs.writeFileSync(path.join(host.workspace, 'preview.html'), attack)
-  fs.writeFileSync(path.join(host.workspace, 'note.txt'), 'synthetic fixture')
+  fs.writeFileSync(path.join(host.workspace, 'note.txt'), 'synthetic fixture\r\n中文 😀\r\nthird line\r\nlast line\r\n')
   fs.writeFileSync(path.join(host.workspace, 'large.txt'), Buffer.alloc(3 * 1024 * 1024, 65))
   fs.writeFileSync(path.join(host.workspace, 'image.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="red"/></svg>')
   const server = createServer(async (req, res) => {
@@ -87,7 +87,7 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
   let page
   try {
     browser = await chromium.launch(process.platform === 'win32' ? { channel: 'msedge', headless: true } : { headless: true })
-    page = await browser.newPage({ viewport: { width: 1100, height: 800 } })
+    page = await browser.newPage({ locale: 'en-US', viewport: { width: 1100, height: 800 } })
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))
     await page.goto(`http://127.0.0.1:${address.port}/`)
@@ -106,6 +106,43 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
       await expect.poll(() => page.locator('.dfa-name').textContent()).toBe('note.txt')
       await page.keyboard.press('Escape')
     }
+
+    // The file read is real; a recording clipboard keeps this synthetic check
+    // from replacing the user's system clipboard.
+    await page.evaluate(() => {
+      (window as any).copied = []
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => (window as any).copied.push(text) } })
+      ;(document.querySelector('#note') as HTMLElement).dataset.fileActionsPath = 'note.txt#L2-L3'
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await expect.poll(() => page.locator('[data-dfa-item="copyLines"]').count()).toBe(1)
+    await page.locator('[data-dfa-menu="1"]').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)))
+    await page.screenshot({ path: path.join(project, 'work/results/reference-lines.png') })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="copyLines"]').scrollIntoViewIfNeeded()
+    await page.locator('[data-dfa-menu="1"]').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)))
+    const narrowMenu = await page.locator('[data-dfa-menu="1"]').boundingBox()
+    expect(narrowMenu!.x + narrowMenu!.width).toBeLessThanOrEqual(390)
+    await page.screenshot({ path: path.join(project, 'work/results/reference-lines-narrow.png') })
+    await page.locator('[data-dfa-item="copyLines"]').click()
+    await expect.poll(() => page.evaluate(() => (window as any).copied)).toEqual(['中文 😀\r\nthird line'])
+    await page.setViewportSize({ width: 1100, height: 800 })
+    expect(calls.some(call => call.op === 'readBytes' && call.id === 'active' && path.basename(call.path) === 'note.txt')).toBe(true)
+    await page.locator('#text').evaluate((el: HTMLElement, file) => {
+      const button = document.createElement('button')
+      button.title = file
+      button.textContent = 'note.txt:2:7'
+      el.replaceChildren(button)
+    }, path.join(host.workspace, 'note.txt'))
+    await page.locator('#text button').click({ button: 'right' })
+    await page.locator('[data-dfa-item="copyLines"]').click()
+    await expect.poll(() => page.evaluate(() => (window as any).copied)).toEqual(['中文 😀\r\nthird line', '中文 😀'])
+    await page.locator('#note').evaluate((el: HTMLElement) => { el.dataset.fileActionsPath = 'note.txt:99' })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="copyLines"]').click()
+    await expect.poll(() => page.locator('.dfa-toast').textContent()).toContain('outside the file')
+    expect(await page.evaluate(() => (window as any).copied)).toEqual(['中文 😀\r\nthird line', '中文 😀'])
 
     // The actual action creates a popup, reads from the real Host and installs
     // a static safe preview. Script/network execution requires a separate opt-in.
