@@ -52,8 +52,8 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
           };
           window.ctx = { effect(fn) { window.cleanup = fn() },
             sessions: {list: {getSnapshot: () => ({byId: {
-              active: {id:'active',cwd:${JSON.stringify(host.workspace)},retainedBy:{mainView:1}},
-              other: {id:'other',cwd:${JSON.stringify(host.workspace)}}
+              active: {id:'active',cwd:${JSON.stringify(fs.realpathSync.native(host.workspace))},retainedBy:{mainView:1}},
+              other: {id:'other',cwd:${JSON.stringify(fs.realpathSync.native(host.workspace))}}
             }})}}, remote: {session: {workspacePathApplications: async () => ({ok:true,value:[]})},
               workspaceFiles: Object.fromEntries(['stat','list','readBytes'].map(op => [op, (...args)=>rpc(op,...args)]))}
           }; plugin.apply(ctx);
