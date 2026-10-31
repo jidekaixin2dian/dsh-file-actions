@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- 「在浏览器中打开」的非活动内容窗口收紧 sandbox：媒体、图片与纯文本不再授予
+  `allow-scripts`，仅内置 PDF 查看器保留脚本上下文；opaque origin 不变。
+- Tighten the browser-preview sandbox for non-active content: media, images and
+  plain text no longer get `allow-scripts`; only the built-in PDF viewer keeps a
+  scripting context. The opaque origin is unchanged.
+
 ## 0.1.19 — 2026-10-31
 
 - 设置页新增中英文「项目与反馈」区域，可打开 File Actions GitHub 项目或新建反馈。
