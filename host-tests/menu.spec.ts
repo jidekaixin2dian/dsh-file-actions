@@ -1,16 +1,39 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { createServer } from 'node:http'
+import { createRequire } from 'node:module'
 import { chromium, expect as browserExpect } from '@playwright/test'
 import { expect, it } from 'vitest'
 import { listenSafe } from './server.ts'
 
 // Browser interaction checks use deterministic Remote responses. The separate
 // runtime suite exercises real Host filesystem reads and sandboxed previews.
-async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Array<{ id: string; name: string }> } = {}) {
+async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Array<{ id: string; name: string }>; settings?: boolean; storage?: Record<string, string> } = {}) {
   const client = fs.readFileSync(path.join(process.env.DFA_PROJECT!, 'lib/client.js'), 'utf8')
+  let settingsBoot = ''
+  if (initial.settings) {
+    const build = createRequire(fs.realpathSync(path.join(process.cwd(), 'node_modules/tsx/package.json')))('esbuild').buildSync
+    const rendererRequire = createRequire(path.join(process.cwd(), 'packages/client/ui-renderer/package.json'))
+    settingsBoot = build({ stdin: { contents: `
+      import React from ${JSON.stringify(rendererRequire.resolve('react'))};
+      import {createRoot} from ${JSON.stringify(rendererRequire.resolve('react-dom/client'))};
+      window.React = React; window.settingsSections = [];
+      const root = createRoot(document.getElementById('settings'));
+      window.slots = { inject(_name, fn) {return fn()}, register(meta, Component) {
+        window.settingsSections.push(meta);
+        const button = document.createElement('button');
+        button.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" /></svg><span></span>';
+        button.querySelector('span').textContent = typeof meta.label === 'function' ? meta.label() : meta.label;
+        document.getElementById('settings-nav').appendChild(button);
+        root.render(React.createElement(Component));
+        return () => {button.remove();root.render(null); window.settingsSections = window.settingsSections.filter(item => item !== meta)};
+      }};
+    `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'iife', platform: 'browser', logLevel: 'silent' }).outputFiles[0].text
+  }
+
   const server = createServer((req, res) => {
     if (req.url === '/client.js') { res.setHeader('content-type', 'text/javascript'); res.end(client); return }
+    if (req.url === '/icon.svg') { res.setHeader('content-type', 'image/svg+xml'); res.end(fs.readFileSync(path.join(process.env.DFA_PROJECT!, 'icon.svg'))); return }
     res.setHeader('content-type', 'text/html; charset=utf-8')
     res.end(`<!doctype html><html lang="en" style="font-size:16px;color-scheme:dark"><head><meta charset="utf-8">
       <style>body{font:16px system-ui;background:#181818;color:#eee;padding:28px}button,code,a{margin:8px}
@@ -25,7 +48,8 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
       <pre><code id="fenced">fenced-only.txt</code></pre>
       <a id="link" href="https://example.com/docs">Documentation</a>
       <div id="tree-row" class="row" role="button" title="C:/workspace/note.txt">note.txt</div></div>
-      <script>window.__ModuleLoader__={load(def){window.plugin=def.factory()}};</script>
+      ${initial.settings ? '<section role="dialog" aria-label="Settings fixture"><nav id="settings-nav"><button id="other-section"><svg width="16" height="16"><circle cx="8" cy="8" r="6" /></svg><span>Other settings</span></button></nav><div id="settings"></div></section>' : '<div id="settings"></div>'}<script>${settingsBoot.replaceAll('</script', '<\/script')}</script>
+      <script>window.__ModuleLoader__={load(def){window.plugin=def.factory(name=>{if(name==='react')return window.React;throw Error(name)})}};</script>
       <script src="/client.js"></script><script>
       window.state={missing:true,apps:'ready',delayApps:false,delayThumb:false};
       window.calls={opens:[],apps:0,stats:0,paths:[]}; window.lastPrevented=null;
@@ -34,7 +58,9 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
         {id:'notepad',name:'Notepad',default:true},...Array.from({length:7},(_,i)=>({id:'other'+i,name:'Other '+i}))];
       Object.assign(window.state, ${JSON.stringify(initial.state || {})});
       if (${JSON.stringify(Boolean(initial.apps))}) window.apps=${JSON.stringify(initial.apps || [])};
-      window.ctx={effect(fn){window.cleanup=fn()},sessions:{list:{getSnapshot:()=>({byId:{
+      if(!sessionStorage.getItem('dfa-fixture-seeded')){for(const [key,value] of Object.entries(${JSON.stringify(initial.storage || {})}))localStorage.setItem(key,value);sessionStorage.setItem('dfa-fixture-seeded','1')}
+      window.uiLanguage="en";
+      window.ctx={get(name){return name==='slots'?window.slots:undefined},effect(fn){window.cleanup=fn()},sessions:{list:{getSnapshot:()=>({byId:{
         active:{id:'active',cwd:'/workspace',retainedBy:{mainView:1}}}})}},remote:{
         session:{openWorkspacePath:async request=>{calls.opens.push(request);return {ok:true,value:{opened:true}}},
           workspacePathApplications:async()=>{calls.apps++;if(state.delayApps)await new Promise(r=>window.releaseApps=r);
@@ -49,7 +75,7 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
             const marker=path.includes('image2')?'#00ff00':'#ff0000';
             const svg='<svg xmlns="http://www.w3.org/2000/svg" width="40" height="24"><rect width="40" height="24" fill="'+marker+'"/></svg>';
             return {ok:true,value:{data:new TextEncoder().encode(svg),eof:true}}}
-        }}};plugin.apply(ctx);
+        }}};if(window.slots)ctx.locale={language:{getSnapshot:()=>window.uiLanguage}};plugin.apply(ctx);
       </script></body></html>`)
   })
   await listenSafe(server)
@@ -820,5 +846,428 @@ it('late thumbnails retain submenu search, no matches cannot launch hidden apps,
     await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)))
     await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/results/menu-light.png') })
     expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+
+async function referenceFixture() {
+  const fixture = await menuFixture()
+  await fixture.page.evaluate(() => {
+    const w = window as any
+    w.copied = []; w.readCount = 0; w.version = 'v1'
+    w.referenceText = 'before\r\nconst label = "<script>window.attacked=true</script>"\r\n中文 😀\r\nafter\r\n'
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => w.copied.push(text) }, configurable: true })
+    w.ctx.remote.workspaceFiles.readBytes = async () => {
+      w.readCount++
+      if (w.holdRead) await new Promise(resolve => { w.releaseRead = resolve })
+      return { ok: true, value: { data: new TextEncoder().encode(w.referenceText), eof: true, version: w.version } }
+    }
+    ;(document.querySelector('#note') as HTMLElement).dataset.fileActionsPath = 'note.txt#L2-L3'
+  })
+  return fixture
+}
+
+it('reference context is literal text, keeps keyboard focus, and copies only cited lines with source', async () => {
+  const fixture = await referenceFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="referencePreview"]').click()
+    await browserExpect(page.getByRole('button', { name: 'Copy excerpt with source' })).toBeEnabled()
+    await browserExpect(page.locator('.dfa-reference-code').filter({ hasText: 'window.attacked' })).toContainText('<script>')
+    expect(await page.evaluate(() => (window as any).attacked)).toBeUndefined()
+    expect(await page.locator('.dfa-reference-row[data-selected="true"]').count()).toBe(2)
+    await page.getByRole('button', { name: 'Copy excerpt with source' }).click()
+    await expect.poll(() => page.evaluate(() => (window as any).copied.length)).toBe(1)
+    expect((await page.evaluate(() => (window as any).copied[0]))).toBe('note.txt#L2-L3\n\n```\nconst label = "<script>window.attacked=true</script>"\r\n中文 😀\n```')
+    await page.keyboard.press('Tab')
+    expect(await page.evaluate(() => !!document.activeElement?.closest('.dfa-reference'))).toBe(true)
+    await page.locator('.dfa-reference-code').first().evaluate(el => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey: true })))
+    await browserExpect(page.locator('.dfa-reference-overlay')).toBeVisible()
+    await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/results/reference-context-dark.png') })
+    await page.emulateMedia({ colorScheme: 'light' })
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    await page.evaluate(() => {
+      document.documentElement.style.colorScheme = 'light'
+      document.documentElement.style.setProperty('--dsw-alias-bg-layer-1', '#ffffff')
+      document.documentElement.style.setProperty('--dsw-alias-label-primary', '#202124')
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="referencePreview"]').click()
+    await browserExpect(page.getByRole('button', { name: 'Copy excerpt with source' })).toBeEnabled()
+    expect(await page.locator('.dfa-reference').evaluate(el => getComputedStyle(el).color)).toBe('rgb(32, 33, 36)')
+    expect(await page.locator('.dfa-reference').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
+    await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/results/reference-context-light.png') })
+    await page.setViewportSize({ width: 390, height: 844 })
+    // Resize closes a file menu; reopen at the new viewport size.
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="referencePreview"]').click()
+    await browserExpect(page.getByRole('button', { name: 'Copy excerpt with source' })).toBeEnabled()
+    const panel = await page.locator('.dfa-reference').boundingBox()
+    expect(panel!.x).toBeGreaterThanOrEqual(0)
+    expect(panel!.x + panel!.width).toBeLessThanOrEqual(390)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/results/reference-context-narrow.png') })
+    await page.evaluate(() => {
+      const w = window as any
+      w.ctx.locale = { language: { getSnapshot: () => 'zh' } }
+      w.plugin.apply(w.ctx)
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="referencePreview"]').click()
+    await browserExpect(page.getByRole('button', { name: '复制片段及来源' })).toBeEnabled()
+    await browserExpect(page.locator('.dfa-reference-title')).toHaveText('查看引用上下文')
+    await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/results/reference-context-zh-narrow.png') })
+    await page.keyboard.press('Escape')
+    await browserExpect(page.locator('.dfa-reference-overlay')).toHaveCount(0)
+    await browserExpect(page.locator('[data-dfa-menu]')).toBeVisible()
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('reference preview cancellation reads nothing outside the workspace', async () => {
+  const fixture = await referenceFixture()
+  try {
+    await fixture.page.evaluate(() => {
+      ;(document.querySelector('#note') as HTMLElement).dataset.fileActionsPath = '/outside/note.txt:2'
+      window.confirm = () => false
+    })
+    await fixture.page.locator('#note').click({ button: 'right' })
+    await fixture.page.locator('[data-dfa-item="referencePreview"]').click()
+    await browserExpect(fixture.page.locator('.dfa-reference-overlay')).toHaveCount(0)
+    expect(await fixture.page.evaluate(() => (window as any).readCount)).toBe(0)
+  } finally { await fixture.dispose() }
+})
+
+it('a changed file cannot be copied as the displayed reference', async () => {
+  const fixture = await referenceFixture()
+  try {
+    await fixture.page.locator('#note').click({ button: 'right' })
+    await fixture.page.locator('[data-dfa-item="referencePreview"]').click()
+    await browserExpect(fixture.page.getByRole('button', { name: 'Copy excerpt with source' })).toBeEnabled()
+    await fixture.page.evaluate(() => { (window as any).version = 'v2' })
+    await fixture.page.getByRole('button', { name: 'Copy excerpt with source' }).click()
+    await browserExpect(fixture.page.locator('.dfa-toast')).toContainText('file changed')
+    expect(await fixture.page.evaluate(() => (window as any).copied)).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('closing or replacing a loading reference preview ignores late reads', async () => {
+  const fixture = await referenceFixture()
+  try {
+    await fixture.page.evaluate(() => { (window as any).holdRead = true })
+    await fixture.page.locator('#note').click({ button: 'right' })
+    await fixture.page.locator('[data-dfa-item="referencePreview"]').click()
+    await expect.poll(() => fixture.page.evaluate(() => !!(window as any).releaseRead)).toBe(true)
+    await fixture.page.keyboard.press('Escape')
+    await fixture.page.keyboard.press('Escape')
+    await fixture.page.locator('#image').click({ button: 'right' })
+    await fixture.page.evaluate(() => { (window as any).releaseRead(); (window as any).holdRead = false })
+    await browserExpect(fixture.page.locator('.dfa-name')).toHaveText('image.svg')
+    await browserExpect(fixture.page.locator('.dfa-reference-overlay')).toHaveCount(0)
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('session changes and plugin unload dispose reference dialogs', async () => {
+  const fixture = await referenceFixture()
+  try {
+    await fixture.page.evaluate(() => {
+      const w = window as any
+      w.ctx.sessions.list.subscribe = callback => { w.sessionChanged = callback; return () => { w.unsubscribed = true } }
+      w.plugin.apply(w.ctx)
+    })
+    await fixture.page.locator('#note').click({ button: 'right' })
+    await fixture.page.locator('[data-dfa-item="referencePreview"]').click()
+    await browserExpect(fixture.page.getByRole('button', { name: 'Copy excerpt with source' })).toBeEnabled()
+    await fixture.page.evaluate(() => {
+      const w = window as any
+      w.ctx.sessions.list.getSnapshot = () => ({ byId: { other: { id: 'other', cwd: '/workspace', retainedBy: { mainView: 1 } } } })
+      w.sessionChanged()
+    })
+    await browserExpect(fixture.page.locator('.dfa-reference-overlay')).toHaveCount(0)
+    await fixture.page.locator('#note').click({ button: 'right' })
+    await fixture.page.locator('[data-dfa-item="referencePreview"]').click()
+    await browserExpect(fixture.page.getByRole('button', { name: 'Copy excerpt with source' })).toBeEnabled()
+    await fixture.page.evaluate(() => (window as any).cleanup())
+    await browserExpect(fixture.page.locator('.dfa-reference-overlay')).toHaveCount(0)
+    expect(await fixture.page.evaluate(() => (window as any).unsubscribed)).toBe(true)
+  } finally { await fixture.dispose() }
+})
+
+
+it('settings persist, change the live file menu and control the reference context window', async () => {
+  const fixture = await menuFixture({ settings: true })
+  const { page } = fixture
+  try {
+    await browserExpect(page.getByRole('combobox', { name: 'Menu display', exact: true })).toHaveAttribute('data-value', 'full')
+    await page.getByRole('combobox', { name: 'Menu display', exact: true }).click()
+    await page.getByRole('option', { name: 'Compact menu', exact: true }).click()
+    await page.getByRole('combobox', { name: 'Reference context', exact: true }).click()
+    await page.getByRole('option', { name: '4 lines before and after', exact: true }).click()
+    await page.reload()
+    await browserExpect(page.getByRole('combobox', { name: 'Menu display', exact: true })).toHaveAttribute('data-value', 'compact')
+    await browserExpect(page.getByRole('combobox', { name: 'Reference context', exact: true })).toHaveAttribute('data-value', '4')
+    await page.evaluate(() => {
+      const w = window as any
+      w.copied = []
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => w.copied.push(text) } })
+      ;(document.querySelector('#note') as HTMLElement).dataset.fileActionsPath = 'note.txt:25'
+      w.ctx.remote.workspaceFiles.readBytes = async () => ({ ok: true, value: { data: new TextEncoder().encode(Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join('\n')), eof: true, version: 'v1' } })
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="copyFileName"]')).toHaveCount(0)
+    await browserExpect(page.locator('[data-dfa-item="copyPath"]')).toBeVisible()
+    await page.locator('[data-dfa-item="referencePreview"]').click()
+    await browserExpect(page.locator('.dfa-reference-row')).toHaveCount(9)
+    await page.getByRole('button', { name: 'Copy excerpt with source' }).click()
+    await expect.poll(() => page.evaluate(() => (window as any).copied.at(-1))).toBe('note.txt#L25\n\n```\nline 25\n```')
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Reset menu and preview defaults' }).click()
+    await browserExpect(page.getByRole('combobox', { name: 'Menu display', exact: true })).toHaveAttribute('data-value', 'full')
+    await browserExpect(page.getByRole('combobox', { name: 'Reference context', exact: true })).toHaveAttribute('data-value', '8')
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="copyFileName"]')).toBeVisible()
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('settings remove individual or all existing app preferences and preserve unrelated data', async () => {
+  const fixture = await menuFixture({ settings: true, storage: {
+    'dsh-file-actions.preferred-apps.v1': JSON.stringify({ txt: 'notepad', json: 'code' }), unrelated: 'keep',
+  } })
+  const { page } = fixture
+  try {
+    await browserExpect(page.locator('.dfa-settings-app')).toHaveCount(2)
+    await page.getByRole('button', { name: 'Remove preference: .txt', exact: true }).click()
+    await browserExpect(page.locator('.dfa-settings-app')).toHaveCount(1)
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('dsh-file-actions.preferred-apps.v1')!))).toEqual({ json: 'code' })
+    await page.reload()
+    await browserExpect(page.locator('.dfa-settings-app')).toHaveCount(1)
+    await page.getByRole('button', { name: 'Clear all preferred applications', exact: true }).click()
+    await browserExpect(page.locator('.dfa-settings-app')).toHaveCount(0)
+    expect(await page.evaluate(() => localStorage.getItem('unrelated'))).toBe('keep')
+    expect(await page.evaluate(() => (window as any).calls.apps)).toBe(0)
+    expect(await page.evaluate(() => (window as any).calls.stats)).toBe(0)
+    await page.reload()
+    await browserExpect(page.getByText('No preferred applications yet', { exact: true })).toBeVisible()
+  } finally { await fixture.dispose() }
+})
+
+it('clearing the app cache rejects pending stale responses and retains preferred applications', async () => {
+  // First-paint pointer events can prefetch before the first browser evaluate.
+  const fixture = await menuFixture({ settings: true, state: { delayApps: true }, storage: { 'dsh-file-actions.preferred-apps.v1': '{"txt":"notepad"}' } })
+  const { page } = fixture
+  try {
+    await page.locator('#note').hover()
+    await expect.poll(() => page.evaluate(() => !!(window as any).releaseApps), { timeout: 5000 }).toBe(true)
+    await page.getByRole('button', { name: 'Clear application cache', exact: true }).click()
+    await page.evaluate(async () => { const w = window as any; w.state.delayApps = false; w.releaseApps(); await new Promise(resolve => setTimeout(resolve, 50)) })
+    await browserExpect(page.getByLabel('0 file types cached', { exact: true })).toBeVisible()
+    await browserExpect(page.locator('.dfa-settings-app')).toHaveCount(1)
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="openWith"]')).toBeEnabled()
+    expect(await page.evaluate(() => (window as any).calls.apps)).toBeGreaterThanOrEqual(2)
+    await page.keyboard.press('Escape')
+    await browserExpect(page.getByLabel('1 file types cached', { exact: true })).toBeVisible()
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('storage failures retain accepted settings and announce failure without claiming success', async () => {
+  const fixture = await menuFixture({ settings: true })
+  const { page } = fixture
+  try {
+    await page.evaluate(() => { Storage.prototype.setItem = function () { throw Error('fixture storage denied') } })
+    await page.getByRole('combobox', { name: 'Menu display', exact: true }).click()
+    await page.getByRole('option', { name: 'Compact menu', exact: true }).click()
+    await browserExpect(page.getByRole('alert')).toContainText('Could not save')
+    await browserExpect(page.getByRole('combobox', { name: 'Menu display', exact: true })).toHaveAttribute('data-value', 'full')
+    expect(await page.evaluate(() => localStorage.getItem('dsh-file-actions.settings.v1'))).toBe(null)
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('settings register once, react to external changes, and dispose on unload', async () => {
+  const fixture = await menuFixture({ settings: true })
+  const { page } = fixture
+  try {
+    await browserExpect(page.locator('[data-dfa-settings]')).toHaveCount(1)
+    await page.evaluate(() => { const w = window as any; w.plugin.apply(w.ctx) })
+    await browserExpect(page.locator('[data-dfa-settings]')).toHaveCount(1)
+    expect(await page.evaluate(() => (window as any).settingsSections.length)).toBe(1)
+    await page.evaluate(() => {
+      localStorage.setItem('dsh-file-actions.settings.v1', '{"menuMode":"compact","contextLines":16}')
+      window.dispatchEvent(new StorageEvent('storage', { key: 'dsh-file-actions.settings.v1' }))
+    })
+    await browserExpect(page.getByRole('combobox', { name: 'Menu display', exact: true })).toHaveAttribute('data-value', 'compact')
+    await browserExpect(page.getByRole('combobox', { name: 'Reference context', exact: true })).toHaveAttribute('data-value', '16')
+    await page.evaluate(() => (window as any).cleanup())
+    await browserExpect(page.locator('[data-dfa-settings]')).toHaveCount(0)
+    await browserExpect(page.locator('[data-dfa-nav-icon]')).toHaveCount(0)
+    expect(await page.locator('#other-section svg').evaluate(el => getComputedStyle(el).display)).not.toBe('none')
+    expect(await page.evaluate(() => (window as any).settingsSections.length)).toBe(0)
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('settings copy is bilingual and fits dark, light, and narrow layouts', async () => {
+  const fixture = await menuFixture({ settings: true, storage: { 'dsh-file-actions.preferred-apps.v1': '{"txt":"notepad","json":"code"}' } })
+  const { page } = fixture
+  try {
+    await browserExpect(page.getByRole('heading', { name: 'File Actions · 文件与链接操作', exact: true })).toBeVisible()
+    await browserExpect(page.getByRole('link', { name: 'GitHub project', exact: true })).toHaveAttribute('href', 'https://github.com/jidekaixin2dian/dsh-file-actions')
+    await browserExpect(page.getByRole('link', { name: 'Report an issue', exact: true })).toHaveAttribute('href', 'https://github.com/jidekaixin2dian/dsh-file-actions/issues/new')
+    await browserExpect(page.getByRole('link', { name: 'Report an issue', exact: true })).toHaveAttribute('rel', 'noopener noreferrer')
+    const captureSettings = async (name: string) => {
+      const box = (await page.locator('.dfa-settings').boundingBox())!, viewport = page.viewportSize()!
+      const x = Math.max(0, box.x), y = Math.max(0, box.y)
+      await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, `work/dropdowns-20261030/${name}.png`), clip: { x, y, width: Math.min(box.x + box.width, viewport.width) - x, height: Math.min(box.y + box.height, viewport.height) - y } })
+    }
+    await browserExpect(page.locator('#settings-nav button').filter({ hasText: 'File Actions' })).toHaveAttribute('data-dfa-nav-icon', 'file-actions')
+    expect(await page.locator('#other-section').getAttribute('data-dfa-nav-icon')).toBe(null)
+    expect(await page.locator('.dfa-settings-mark svg').count()).toBe(1)
+    expect(await page.locator('[data-dfa-nav-icon]').evaluate(el => getComputedStyle(el, '::before').maskImage)).toContain('data:image/svg+xml')
+    await page.evaluate(() => {
+      const dialog = document.querySelector('[role="dialog"]')!;
+      dialog.remove(); dialog.querySelector('[data-dfa-nav-icon]')!.removeAttribute('data-dfa-nav-icon');
+      (window as any).reopenSettings = () => document.body.appendChild(dialog);
+    })
+    await page.evaluate(() => (window as any).reopenSettings())
+    await browserExpect(page.getByRole('button', { name: 'File Actions', exact: true })).toHaveAttribute('data-dfa-nav-icon', 'file-actions')
+    await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/results/settings-en-dark.png'), fullPage: true })
+    await page.getByRole('combobox', { name: 'Menu display', exact: true }).click()
+    await browserExpect(page.locator('.dfa-select-menu[data-state="open"]')).toHaveCount(1)
+    await captureSettings('dropdown-dark')
+    await page.getByRole('combobox', { name: 'Menu display', exact: true }).press('Escape')
+    await page.evaluate(() => {
+      const w = window as any; w.uiLanguage = 'zh'; w.plugin.apply(w.ctx)
+      document.documentElement.style.colorScheme = 'light'
+      document.documentElement.style.setProperty('--dsw-alias-label-primary', '#202124')
+      document.documentElement.style.setProperty('--dsw-alias-bg-layer-1', '#fff')
+      document.documentElement.style.setProperty('--dsw-alias-bg-layer-2', '#f6f8fa')
+      document.body.style.background = '#f6f8fa'; document.body.style.color = '#202124'
+    })
+    await browserExpect(page.getByRole('heading', { name: '文件与链接操作 · File Actions', exact: true })).toBeVisible()
+    await browserExpect(page.getByRole('link', { name: 'GitHub 项目', exact: true })).toHaveAttribute('target', '_blank')
+    await browserExpect(page.getByRole('link', { name: '反馈问题', exact: true })).toHaveAttribute('href', 'https://github.com/jidekaixin2dian/dsh-file-actions/issues/new')
+    expect(await page.evaluate(() => (window as any).settingsSections[0].label())).toBe('文件操作')
+    await browserExpect(page.getByRole('button', { name: '文件操作', exact: true })).toHaveAttribute('data-dfa-nav-icon', 'file-actions')
+    await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/results/settings-zh-light.png'), fullPage: true })
+    await page.locator('.dfa-settings').screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/ui-20261030/settings-preview.png') })
+    await page.getByRole('combobox', { name: '菜单显示', exact: true }).click()
+    await browserExpect(page.locator('.dfa-select-menu[data-state="open"]')).toHaveCount(1)
+    await captureSettings('dropdown-light')
+    await page.getByRole('combobox', { name: '菜单显示', exact: true }).press('Escape')
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/results/settings-zh-narrow.png'), fullPage: true })
+    await page.getByRole('combobox', { name: '引用前后文', exact: true }).click()
+    await browserExpect(page.locator('.dfa-select-menu[data-state="open"]')).toHaveCount(1)
+    await captureSettings('dropdown-narrow')
+    await page.getByRole('combobox', { name: '引用前后文', exact: true }).press('Escape')
+    await page.evaluate(async () => {
+      const icon = new Image(); icon.src = '/icon.svg'; icon.id = 'brand-icon';
+      icon.style.cssText = 'width:128px;height:128px;display:block'; document.body.appendChild(icon);
+      await icon.decode();
+    })
+    await page.locator('#brand-icon').screenshot({ path: path.join(process.env.DFA_PROJECT!, 'work/ui-20261030/icon-preview.png') })
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('settings dropdowns animate both directions and commit keyboard and pointer choices', async () => {
+  const fixture = await menuFixture({ settings: true })
+  const { page } = fixture
+  const menu = page.getByRole('combobox', { name: 'Menu display', exact: true })
+  try {
+    await menu.focus()
+    const opening = await menu.evaluate(el => {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }))
+      const popup = document.querySelector('.dfa-select-menu')!
+      return { duration: popup.getAnimations()[0]?.effect?.getTiming().duration, state: (popup as HTMLElement).dataset.state }
+    })
+    expect(opening).toEqual({ duration: 160, state: 'opening' })
+    await browserExpect(menu).toHaveAttribute('aria-expanded', 'true')
+    await browserExpect(page.getByRole('option', { name: 'Full menu', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await menu.press('End')
+    await browserExpect(page.getByRole('option', { name: 'Compact menu', exact: true })).toHaveAttribute('data-active', 'true')
+    const closing = await menu.evaluate(el => {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+      const popup = document.querySelector('.dfa-select-menu[data-state="closing"]')!
+      return { duration: popup.getAnimations()[0]?.effect?.getTiming().duration, hidden: popup.getAttribute('aria-hidden') }
+    })
+    expect(closing).toEqual({ duration: 120, hidden: 'true' })
+    await browserExpect(menu).toHaveAttribute('data-value', 'compact')
+    await browserExpect(menu).toBeFocused()
+    await browserExpect(page.locator('.dfa-select-menu')).toHaveCount(0)
+    const context = page.getByRole('combobox', { name: 'Reference context', exact: true })
+    await context.click()
+    await page.getByRole('option', { name: '16 lines before and after', exact: true }).click()
+    await browserExpect(context).toHaveAttribute('data-value', '16')
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('dsh-file-actions.settings.v1')!))).toEqual({ menuMode: 'compact', contextLines: 16 })
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('settings dropdown cancellation, rapid reopening and unload retain focus and clean up popups', async () => {
+  const fixture = await menuFixture({ settings: true })
+  const { page } = fixture
+  const menu = page.getByRole('combobox', { name: 'Menu display', exact: true })
+  try {
+    await page.evaluate(() => { (window as any).escaped = 0; document.addEventListener('keydown', e => { if (e.key === 'Escape') (window as any).escaped++ }) })
+    await menu.press('Space')
+    await menu.press('End')
+    await menu.press('Escape')
+    await browserExpect(menu).toHaveAttribute('data-value', 'full')
+    await browserExpect(menu).toBeFocused()
+    expect(await page.evaluate(() => (window as any).escaped)).toBe(0)
+    await menu.press('ArrowDown'); await menu.press('Tab')
+    await browserExpect(page.getByRole('combobox', { name: 'Reference context', exact: true })).toBeFocused()
+    await browserExpect(menu).toHaveAttribute('aria-expanded', 'false')
+    await menu.click()
+    await page.locator('#other-section').click()
+    await browserExpect(page.locator('#other-section')).toBeFocused()
+    await browserExpect(menu).toHaveAttribute('aria-expanded', 'false')
+    await menu.evaluate(el => { (el as HTMLElement).click(); (el as HTMLElement).click(); (el as HTMLElement).click() })
+    await browserExpect(page.getByRole('listbox')).toHaveCount(1)
+    expect(await page.locator('#dfa-setting-menuMode-options').count()).toBe(1)
+    await menu.press('c')
+    await browserExpect(page.getByRole('option', { name: 'Compact menu', exact: true })).toHaveAttribute('data-active', 'true')
+    await page.evaluate(() => (window as any).cleanup())
+    await browserExpect(page.locator('.dfa-select-menu')).toHaveCount(0)
+    expect(await page.evaluate(() => localStorage.getItem('dsh-file-actions.settings.v1'))).toBe(null)
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('settings dropdowns fit viewport edges, follow resize and respect reduced motion', async () => {
+  const fixture = await menuFixture({ settings: true })
+  const { page } = fixture
+  const context = page.getByRole('combobox', { name: 'Reference context', exact: true })
+  try {
+    await page.setViewportSize({ width: 390, height: 500 })
+    await context.evaluate(el => { (el as HTMLElement).style.cssText = 'position:fixed;bottom:8px;right:8px' })
+    await context.click()
+    // Chromium delivers the resize event after setViewportSize has returned.
+    const assertBounds = async () => expect.poll(async () => {
+      const popup = await page.getByRole('listbox').boundingBox(), trigger = await context.boundingBox()
+      return !!popup && !!trigger && popup.x >= 8 && popup.x + popup.width <= page.viewportSize()!.width - 8
+        && popup.y >= 8 && popup.y + popup.height <= trigger.y - 5
+    }, { timeout: 5000 }).toBe(true)
+    await browserExpect(page.locator('.dfa-select-menu[data-state="open"]')).toHaveCount(1)
+    await assertBounds()
+    await page.setViewportSize({ width: 280, height: 500 })
+    await assertBounds()
+    await context.press('Home'); await context.press('ArrowDown')
+    await browserExpect(page.getByRole('option', { name: '8 lines before and after', exact: true })).toHaveAttribute('data-active', 'true')
+    await context.press('Escape')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await context.click()
+    expect(await page.getByRole('listbox').evaluate(el => el.getAnimations().length)).toBe(0)
+    await context.press('Escape')
+    await browserExpect(page.locator('.dfa-select-menu')).toHaveCount(0)
+    expect(fixture.errors).toEqual([])
   } finally { await fixture.dispose() }
 })

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.19 — 2026-10-31
+
+- 设置页新增中英文「项目与反馈」区域，可打开 File Actions GitHub 项目或新建反馈。
+- Add bilingual project and issue links to the settings page.
+- 设置下拉框改为统一圆角选项面板：选中勾、悬停高亮、箭头旋转与双向开合动画；支持键盘选择、Esc/外部点击收起、屏幕边缘避让和减少动画偏好。
+- Style settings dropdown panels and animate opening and closing, with keyboard navigation, dismissal, viewport positioning and reduced-motion support.
+- 优化设置页分组、紧凑行布局与亮暗/窄屏适配；侧栏缩短为「文件操作 / File Actions」，保留详情中英文全名，新增文件与指针图标。
+- Refine settings layout and theme support, shorten the sidebar label, and add a file-and-pointer icon while retaining the full bilingual detail name.
+- 新增原生设置侧栏入口：首选应用查看/取消/清除、完整/精简菜单、引用前后文范围，以及关联应用缓存清理；沿用原有首选应用数据，默认行为保持不变。
+- 设置按当前客户端保存，存储失败保留旧值并提示；缓存清理隔离尚未完成的旧查询，卸载时注销入口。菜单与页面内容保留原生 DOM，仅使用宿主 React 作为设置槽的挂载适配，不新增运行时依赖。
+
+- 新增「查看引用上下文」：只读行号预览、高亮引用行与有限前后文；沿用 UTF-8、2 MiB、工作区外明确确认，关闭、切换目标或会话后忽略迟到结果。
+- 新增「复制片段及来源」：复制相对路径、行段与原始引用正文；保留内部换行，动态 Markdown 围栏保护代码内容，复制前核对文件版本。
+- 中英文详情名称同时保留中文与英文，更新简介；默认兼容验证宿主升级至 DSH rc.5，并保留 rc.2 / rc.3 / rc.4。行列跳转暂缓，rc.5 官方接口仍无位置字段。
+- Add read-only reference context and source-attributed excerpt copying. Preserve the existing file access gates and reject stale reads; verify DSH rc.5 while retaining earlier host coverage.
+
 ## 0.1.18 — 2026-10-30
 
 - 新增「复制引用行」：带行号的文本引用可复制对应整行或行段；保留原始内部换行，沿用 UTF-8、2 MiB 与工作区外确认限制；超出文件范围时拒绝复制。

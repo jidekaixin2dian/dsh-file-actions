@@ -1,7 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="dsh-file-actions">
-  <rect width="64" height="64" rx="14" fill="#1b1d21"/>
-  <path d="M18 16h18l10 10v22a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V20a4 4 0 0 1 4-4z" fill="none" stroke="#e8e8e8" stroke-width="2.4" stroke-linejoin="round"/>
-  <path d="M36 16v10h10" fill="none" stroke="#e8e8e8" stroke-width="2.4" stroke-linejoin="round"/>
-  <circle cx="45" cy="45" r="11" fill="#c8f663"/>
-  <path d="M40.5 45h9M45 40.5v9" stroke="#1b1d21" stroke-width="2.6" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="File Actions">
+  <defs>
+    <linearGradient id="surface" x1="8" y1="4" x2="56" y2="62" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3578ef"/>
+      <stop offset="1" stop-color="#158eaa"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="url(#surface)"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#fff" stroke-opacity=".16"/>
+  <path d="M34 13H19a3 3 0 0 0-3 3v31a3 3 0 0 0 3 3h22a3 3 0 0 0 3-3V23z" fill="#fff" fill-opacity=".12" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M34 13v10h10M23 31h9M23 37h6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m34 35 16 10-8 2-3.5 8z" fill="#fff" stroke="#176b9d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
