@@ -23,6 +23,8 @@ File Actions is a file and link context-menu plugin for DeepSeek Harness (DSH). 
 - **Video preview:** the menu can show a thumbnail extracted from a video. Open supported formats in the browser to play the full video. Thumbnails depend on browser decoding and are unavailable for files over 8 MiB or when decoding fails; browser previews and saved copies are limited to 64 MiB.
 - **Continue editing a delivered file:** use **Open with** from its conversation reference to search associated applications and save a preference by file type without changing OS defaults.
 - **Code reference context:** when a reference retains line numbers, preview the referenced lines and surrounding context or copy the excerpt with its source path. These actions cannot recover line numbers hidden by the host.
+- **Paths, text and links:** copy absolute or relative paths, filenames, valid UTF-8 text and referenced lines; copy a web link's URL, text or Markdown. File-content and referenced-line reads are limited to 2 MiB.
+- **Keyboard and menu settings:** open the menu with `Shift+F10` and navigate with arrows and Enter. Choose a full or compact menu and adjust the number of context lines in reference previews.
 
 ![Right-clicking a file reference in a demonstration conversation](assets/preview-conversation.png)
 
@@ -32,11 +34,14 @@ Screenshots are from an earlier isolated demonstration environment; the interfac
 
 ## Downloads
 
-| GitHub release assets · all releases | npm 0.1.17 · past 7 days |
-|---|---|
-| [**350 downloads**](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | [**191 downloads**](https://api.npmjs.org/versions/@jidekaixin2dian%2Fdsh-file-actions/last-week) |
+As of **2026-10-31**, the File Actions npm package and GitHub Release archives have received **2,000+ download requests** combined:
 
-Snapshot: **2026-10-29**. GitHub counts release-asset requests, including checksums; npm counts downloads of the named version. Requests can include repeat installs and automation, so these are not unique-user counts and the two columns are not added together. Click a number for its live source.
+| Source | Scope | Requests |
+|---|---|---:|
+| [npm package](https://api.npmjs.org/downloads/point/2026-10-23:2026-10-31/@jidekaixin2dian%2Fdsh-file-actions) | All versions, 2026-10-23 through 2026-10-31 | 1,799 |
+| [GitHub Releases](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | `dsh-file-actions.tgz` across all releases, excluding checksums | 440 |
+
+This is a sum of requests across two channels. It may include repeat installs and automation and **does not represent unique users or deduplicated installs**. Counts are a snapshot; the links provide the npm date-range total and individual GitHub asset counts.
 
 ## Install and update
 
