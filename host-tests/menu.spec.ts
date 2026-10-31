@@ -1056,12 +1056,12 @@ it('settings remove individual or all existing app preferences and preserve unre
 })
 
 it('clearing the app cache rejects pending stale responses and retains preferred applications', async () => {
-  const fixture = await menuFixture({ settings: true, storage: { 'dsh-file-actions.preferred-apps.v1': '{"txt":"notepad"}' } })
+  // First-paint pointer events can prefetch before the first browser evaluate.
+  const fixture = await menuFixture({ settings: true, state: { delayApps: true }, storage: { 'dsh-file-actions.preferred-apps.v1': '{"txt":"notepad"}' } })
   const { page } = fixture
   try {
-    await page.evaluate(() => { (window as any).state.delayApps = true })
     await page.locator('#note').hover()
-    await expect.poll(() => page.evaluate(() => !!(window as any).releaseApps)).toBe(true)
+    await expect.poll(() => page.evaluate(() => !!(window as any).releaseApps), { timeout: 5000 }).toBe(true)
     await page.getByRole('button', { name: 'Clear application cache', exact: true }).click()
     await page.evaluate(async () => { const w = window as any; w.state.delayApps = false; w.releaseApps(); await new Promise(resolve => setTimeout(resolve, 50)) })
     await browserExpect(page.getByLabel('0 file types cached', { exact: true })).toBeVisible()
@@ -1250,13 +1250,12 @@ it('settings dropdowns fit viewport edges, follow resize and respect reduced mot
     await page.setViewportSize({ width: 390, height: 500 })
     await context.evaluate(el => { (el as HTMLElement).style.cssText = 'position:fixed;bottom:8px;right:8px' })
     await context.click()
-    const assertBounds = async () => {
+    // Chromium delivers the resize event after setViewportSize has returned.
+    const assertBounds = async () => expect.poll(async () => {
       const popup = await page.getByRole('listbox').boundingBox(), trigger = await context.boundingBox()
-      expect(popup!.x).toBeGreaterThanOrEqual(8)
-      expect(popup!.x + popup!.width).toBeLessThanOrEqual(page.viewportSize()!.width - 8)
-      expect(popup!.y).toBeGreaterThanOrEqual(8)
-      expect(popup!.y + popup!.height).toBeLessThanOrEqual(trigger!.y - 5)
-    }
+      return !!popup && !!trigger && popup.x >= 8 && popup.x + popup.width <= page.viewportSize()!.width - 8
+        && popup.y >= 8 && popup.y + popup.height <= trigger.y - 5
+    }, { timeout: 5000 }).toBe(true)
     await browserExpect(page.locator('.dfa-select-menu[data-state="open"]')).toHaveCount(1)
     await assertBounds()
     await page.setViewportSize({ width: 280, height: 500 })
