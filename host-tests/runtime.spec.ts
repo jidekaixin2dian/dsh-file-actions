@@ -144,6 +144,17 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     await expect.poll(() => page.locator('.dfa-toast').textContent()).toContain('outside the file')
     expect(await page.evaluate(() => (window as any).copied)).toEqual(['中文 😀\r\nthird line', '中文 😀'])
 
+    await page.evaluate(() => { (document.querySelector('#note') as HTMLElement).dataset.fileActionsPath = 'note.txt#L2-L3' })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="referencePreview"]').click()
+    await expect.poll(() => page.locator('.dfa-reference-row[data-selected="true"]').count()).toBe(2)
+    expect(await page.locator('.dfa-reference-row[data-selected="true"] .dfa-reference-code').allTextContents()).toEqual(['中文 😀', 'third line'])
+    await page.getByRole('button', { name: 'Copy excerpt with source', exact: true }).click()
+    await expect.poll(() => page.evaluate(() => (window as any).copied.at(-1))).toBe('note.txt#L2-L3\n\n```\n中文 😀\r\nthird line\n```')
+    await page.keyboard.press('Escape')
+    expect(await page.locator('.dfa-reference-overlay').count()).toBe(0)
+    await page.keyboard.press('Escape')
+
     // The actual action creates a popup, reads from the real Host and installs
     // a static safe preview. Script/network execution requires a separate opt-in.
     const popupPromise = page.waitForEvent('popup')

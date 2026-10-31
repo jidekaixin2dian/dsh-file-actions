@@ -48,6 +48,15 @@ jobs:
       - name: Host filesystem and browser regression
         run: npm run test:host
         env:
+          DFA_RESULTS: work/results/rc5
+      - name: Prepare rc.4 compatibility host
+        run: npm run setup:host
+        env:
+          DFA_HOST_VERSION: rc.4
+      - name: rc.4 filesystem and browser regression
+        run: npm run test:host
+        env:
+          DFA_HOST_VERSION: rc.4
           DFA_RESULTS: work/results/rc4
       - name: Prepare minimum supported host
         run: npm run setup:host

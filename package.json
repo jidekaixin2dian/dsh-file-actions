@@ -1,7 +1,7 @@
 {
   "name": "@jidekaixin2dian/dsh-file-actions",
-  "version": "0.1.18",
-  "description": "File and link actions for DeepSeek Harness: open, choose applications, reveal, copy paths or contents, and save files from the chat.",
+  "version": "0.1.19",
+  "description": "Act on files and links in chat: open, reveal, preview or save; choose preferred apps, inspect reference context and copy excerpts with their source.",
   "icon": "icon.svg",
   "type": "module",
   "main": "lib/index.js",
@@ -55,7 +55,8 @@
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
         "@deepseek-ai/dsh-api-session-controller",
-        "@deepseek-ai/dsh-api-workspace-files"
+        "@deepseek-ai/dsh-api-workspace-files",
+        "@deepseek-ai/dsh-client-ui-settings"
       ]
     }
   },

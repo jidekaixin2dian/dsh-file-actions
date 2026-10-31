@@ -901,3 +901,115 @@ test('the ZH and EN dictionaries have no duplicate keys', () => {
     assert.deepEqual(duplicates(kinds, 6), [], `${name}: duplicate kind key`)
   }
 })
+
+
+test('reference preview bounds context and preserves only actual lines', () => {
+  const preview = api.referenceContext('one\r\ntwo\r\nthree\r\n', { line: 2 })
+  same(preview.rows.map(row => [row.line, row.text, row.selected]), [[1,'one',false],[2,'two',true],[3,'three',false]])
+  assert.equal(api.referenceContext('a\n', { line: 2 }), null)
+  assert.equal(api.referenceContext('', { line: 1 }), null)
+  const huge = api.referenceContext('x\n'.repeat(250), { line: 2, endLine: 240 })
+  assert.equal(huge.rows.length, 80)
+  assert.equal(huge.clipped, true)
+  assert.equal(api.referenceContext('x'.repeat(10000), { line: 1 }).rows[0].text.length, 2401)
+})
+
+test('source excerpts include relative location and selected original text with safe fences', () => {
+  const target = { absolutePath: '/repo/file.md', displayPath: 'file.md', line: 2, endLine: 3 }
+  assert.equal(api.sourceExcerpt('context\r\n```js\r\nchosen\r\nafter', target), 'file.md#L2-L3\n\n````\n```js\r\nchosen\n````')
+  assert.equal(api.sourceExcerpt('a\nb', { ...target, endLine: 6 }), null)
+  assert.equal(api.sourceExcerpt('\n\n', { ...target, line: 1, endLine: 1 }), 'file.md#L1\n\n```\n\n```')
+  assert.ok(api.sourceExcerpt('`x '.repeat(100000), { ...target, line: 1, endLine: 1 }).endsWith('\n```'))
+})
+
+test('reference preview is offered only for located text files', () => {
+  const rows = (file, location) => api.buildMenuModel({ absolutePath: file, location, t: en }).sections.flat()
+  const row = rows('/repo/note.md', { line: 2 }).find(row => row.action === 'referencePreview')
+  assert.equal(row.keepOpen, true)
+  for (const [file, location] of [['/note.md', undefined], ['/img.png', { line: 2 }], ['/a.txt', { line: 0 }]]) {
+    assert.ok(!rows(file, location).some(row => row.action === 'referencePreview'))
+  }
+})
+
+test('preview reads require confirmation and reject changed files, invalid text and partial reads', async () => {
+  let reads = 0
+  const target = { absolutePath: '/a.txt', line: 1, version: 'v1', outsideWorkspace: true }
+  const read = async result => ({ readBytes: async () => { reads++; return result } })
+  const context = { t: en, sessionId: 's', confirm: () => false, bridge: await read({}) }
+  assert.equal(await api.readTextTarget(target, context), null)
+  assert.equal(reads, 0)
+  for (const result of [
+    { data: new TextEncoder().encode('a'), eof: true, version: 'v2' },
+    { data: new Uint8Array([0xff]), eof: true, version: 'v1' },
+    { data: new Uint8Array([0]), eof: true, version: 'v1' },
+    { data: new TextEncoder().encode('a'), eof: false, version: 'v1' },
+  ]) assert.ok((await api.readTextTarget(target, { ...context, confirm: () => true, bridge: await read(result) })).error)
+  const before = reads
+  assert.ok((await api.readTextTarget({ ...target, bytes: api.MAX_COPY_BYTES + 1 }, context)).error)
+  assert.equal(reads, before)
+})
+
+test('cancelled reads cannot put a stale source excerpt on the clipboard', async () => {
+  let current = true, release
+  const copied = []
+  const isolated = loadBundle({ navigator: { clipboard: { writeText: async text => copied.push(text) } } }).__internals
+  const pending = isolated.dispatch({ action: 'copySource' }, { absolutePath: '/a.txt', line: 1 }, {
+    t: en, sessionId: 's', isCurrent: () => current,
+    bridge: { readBytes: () => new Promise(resolve => { release = resolve }) },
+  })
+  await new Promise(resolve => setImmediate(resolve))
+  current = false
+  release({ data: new TextEncoder().encode('secret'), eof: true })
+  await pending
+  assert.deepEqual(copied, [])
+})
+
+
+test('client settings default safely, persist valid choices, and preserve other preferences on reset', () => {
+  const map = new Map([['dsh-file-actions.preferred-apps.v1', '{".txt":"notepad"}']])
+  const storage = { getItem: key => map.get(key), setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key) }
+  const settings = api.clientPreferences(storage)
+  same(settings.get(), { menuMode: 'full', contextLines: 8 })
+  assert.equal(settings.set({ menuMode: 'compact', contextLines: 16 }), true)
+  same(api.clientPreferences(storage).get(), { menuMode: 'compact', contextLines: 16 })
+  map.set('dsh-file-actions.settings.v1', '{"menuMode":"unsupported","contextLines":100000}')
+  same(settings.get(), { menuMode: 'full', contextLines: 8 })
+  assert.equal(settings.reset(), true)
+  assert.equal(map.get('dsh-file-actions.preferred-apps.v1'), '{".txt":"notepad"}')
+  const blocked = api.clientPreferences({ getItem: key => map.get(key), setItem() { throw Error('denied') }, removeItem() { throw Error('denied') } })
+  assert.equal(blocked.set({ menuMode: 'compact' }), false)
+  assert.equal(blocked.reset(), false)
+  same(blocked.get(), { menuMode: 'full', contextLines: 8 })
+})
+
+test('preferred applications can be listed and removed without erasing unrelated client storage', () => {
+  const map = new Map([['unrelated', 'keep']]); let changes = 0
+  const storage = { getItem: key => map.get(key), setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key) }
+  const preferences = api.applicationPreferences(storage, () => changes++)
+  preferences.set('a.txt','notepad'); preferences.set('a.json','code')
+  same(preferences.list(), [{ type: 'json', appId: 'code' }, { type: 'txt', appId: 'notepad' }])
+  assert.equal(preferences.remove('txt'), true)
+  assert.equal(preferences.get('a.json'), 'code')
+  assert.equal(preferences.clear(), true)
+  same(preferences.list(), [])
+  assert.equal(map.get('unrelated'), 'keep')
+  assert.equal(changes, 4)
+})
+
+test('compact menus retain useful operations and default full menus are unchanged', () => {
+  const input = { absolutePath: '/repo/a.txt', displayPath: 'a.txt', location: { line: 5 }, reference: 'a.txt:5', t: en }
+  const full = api.buildMenuModel(input).sections.flat().map(row => row.id)
+  const compact = api.buildMenuModel({ ...input, menuMode: 'compact' }).sections.flat().map(row => row.id)
+  for (const id of ['open','reveal','copyPath','copyContents','copyLines','referencePreview','saveAs']) assert.ok(compact.includes(id), id)
+  assert.ok(full.includes('copyFileName')); assert.ok(!compact.includes('copyFileName'))
+  assert.ok(!compact.includes('copyReference'))
+  assert.equal(api.buildLinkMenuModel({ url: 'https://example.com', text: 'Example', menuMode: 'compact' }).sections.flat().length, 2)
+})
+
+test('reference context preference changes the window without changing the copied range', () => {
+  const text = Array.from({ length: 100 }, (_, index) => `line ${index + 1}`).join('\n')
+  assert.equal(api.referenceContext(text, { line: 50 }, 4).rows.length, 9)
+  assert.equal(api.referenceContext(text, { line: 50 }, 16).rows.length, 33)
+  assert.equal(api.referenceContext(text, { line: 50 }, -2).rows.length, 17)
+  assert.equal(api.referencedText(text, { line: 50 }), 'line 50')
+})
