@@ -1,10 +1,10 @@
 # 文件与链接操作 · File Actions
 
-**从聊天里的文件引用，直接到你要做的操作。**
+**在对话里右键 Agent 给出的文件，打开、预览或继续处理。**
 
 [English](README.en.md) · [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.19) · [插件市场](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [下载](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [更新记录](CHANGELOG.md)
 
-模型给出文件后，下一步通常是打开、继续编辑，或把内容带走。File Actions 把打开方式、文件定位、路径与内容复制、预览和另存放进一个右键菜单，覆盖聊天引用、交付卡片、工具结果及提供文件路径的侧栏。
+File Actions 是 DeepSeek Harness（DSH）的文件和链接右键插件。Agent 在对话中给出文件后，直接右键文件引用或交付卡片，就能从插件菜单打开、定位、预览、复制或另存；也支持工具结果及提供文件路径的侧栏。
 
 ![文件右键菜单外观示例](assets/preview-glass.png)
 
@@ -17,13 +17,31 @@
 | 查看与带走内容 | 预览支持的文档、图片或媒体；复制文本；另存为本地文件 |
 | 分享链接 | 打开网页，复制链接、链接文字或 Markdown |
 
+## 图片、视频与文件引用
+
+- **图片预览**：右键图片引用，菜单内显示可用的缩略图；点击缩略图可以放大查看，不必先切换到图片应用。缩略图读取上限为 8 MiB。
+- **视频预览**：右键视频引用，可在菜单中查看从视频提取的画面缩略图；支持的格式还能通过「在浏览器中打开」播放完整视频。缩略图依赖浏览器解码，文件超过 8 MiB 或无法解码时不会显示；浏览器预览及另存上限为 64 MiB。
+- **交付文件接着编辑**：从当前对话的文件引用进入「打开方式」，搜索系统关联的应用并按文件类型收藏首选，不修改系统默认应用。
+- **代码引用上下文**：保留行号的引用可只读查看引用行及前后文，也可复制引用片段和来源路径；宿主未暴露行号时无法使用这些操作。
+- **路径、正文与链接**：复制绝对或相对路径、文件名、有效 UTF-8 文本与引用行；网页链接可复制地址、文字或 Markdown。文件内容和引用行限 2 MiB。
+- **键盘操作与菜单设置**：用 `Shift+F10` 打开菜单，方向键与 Enter 选择执行；可切换完整或精简菜单，并调整引用预览的前后文行数。
+
+![演示环境中右键对话内的文件引用](assets/preview-conversation.png)
+
+![演示环境中视频引用的菜单缩略图](assets/preview-video.png)
+
+图片来自此前的隔离演示环境；界面会随版本变化。
+
 ## 下载情况
 
-| GitHub Release 资源 · 历史累计 | npm 0.1.17 · 近 7 日 |
-|---|---|
-| [**350 次下载**](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | [**191 次下载**](https://api.npmjs.org/versions/@jidekaixin2dian%2Fdsh-file-actions/last-week) |
+截至 **2026-10-31**，File Actions 的 npm 包与 GitHub Release 安装包合计 **2,000+ 次下载请求**：
 
-统计快照：**2026-10-29**。GitHub 包含安装包、校验文件等资源请求；npm 仅统计表中版本。下载可能包含重复安装和自动化请求，不代表独立用户数，两列不相加。点击数字可查看实时来源。
+| 来源 | 统计范围 | 请求次数 |
+|---|---|---:|
+| [npm 包](https://api.npmjs.org/downloads/point/2026-10-23:2026-10-31/@jidekaixin2dian%2Fdsh-file-actions) | 2026-10-23 至 2026-10-31，全部版本 | 1,799 |
+| [GitHub Release](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | 全部版本的 `dsh-file-actions.tgz`，不含校验文件 | 440 |
+
+这是两种渠道的请求次数之和，可能包含重复安装与自动化请求，**不代表独立用户数或去重安装量**。数字为当日快照；来源链接分别提供 npm 区间统计和 GitHub 各资源计数。
 
 ## 安装与更新
 

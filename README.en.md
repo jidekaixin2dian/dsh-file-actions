@@ -1,10 +1,10 @@
 # File Actions · 文件与链接操作
 
-**Turn a file reference in your conversation into the next action.**
+**Right-click a file from your agent's conversation to open, preview or use it.**
 
 [中文](README.md) · [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.19) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
 
-Once a model gives you a file, the next step is usually to open it, keep editing or take its contents elsewhere. File Actions puts application choices, reveal, copy, preview and save into one context menu across chat references, delivery cards, tool results and sidebars that expose file paths.
+File Actions is a file and link context-menu plugin for DeepSeek Harness (DSH). Right-click a file reference or delivery card in an agent conversation to open, reveal, preview, copy or save it. The menu also supports tool results and sidebars that expose file paths.
 
 ![File menu appearance example](assets/preview-glass.png)
 
@@ -17,13 +17,31 @@ Once a model gives you a file, the next step is usually to open it, keep editing
 | View and export | Preview supported documents and media, copy text, save a local file |
 | Share a link | Open, copy the URL or text, copy as Markdown |
 
+## Image, video and file-reference previews
+
+- **Image preview:** right-click an image reference to see an available thumbnail in the menu; click the thumbnail to enlarge it. Thumbnail reads are limited to 8 MiB.
+- **Video preview:** the menu can show a thumbnail extracted from a video. Open supported formats in the browser to play the full video. Thumbnails depend on browser decoding and are unavailable for files over 8 MiB or when decoding fails; browser previews and saved copies are limited to 64 MiB.
+- **Continue editing a delivered file:** use **Open with** from its conversation reference to search associated applications and save a preference by file type without changing OS defaults.
+- **Code reference context:** when a reference retains line numbers, preview the referenced lines and surrounding context or copy the excerpt with its source path. These actions cannot recover line numbers hidden by the host.
+- **Paths, text and links:** copy absolute or relative paths, filenames, valid UTF-8 text and referenced lines; copy a web link's URL, text or Markdown. File-content and referenced-line reads are limited to 2 MiB.
+- **Keyboard and menu settings:** open the menu with `Shift+F10` and navigate with arrows and Enter. Choose a full or compact menu and adjust the number of context lines in reference previews.
+
+![Right-clicking a file reference in a demonstration conversation](assets/preview-conversation.png)
+
+![Video thumbnail in a demonstration conversation's file menu](assets/preview-video.png)
+
+Screenshots are from an earlier isolated demonstration environment; the interface may change between versions.
+
 ## Downloads
 
-| GitHub release assets · all releases | npm 0.1.17 · past 7 days |
-|---|---|
-| [**350 downloads**](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | [**191 downloads**](https://api.npmjs.org/versions/@jidekaixin2dian%2Fdsh-file-actions/last-week) |
+As of **2026-10-31**, the File Actions npm package and GitHub Release archives have received **2,000+ download requests** combined:
 
-Snapshot: **2026-10-29**. GitHub counts release-asset requests, including checksums; npm counts downloads of the named version. Requests can include repeat installs and automation, so these are not unique-user counts and the two columns are not added together. Click a number for its live source.
+| Source | Scope | Requests |
+|---|---|---:|
+| [npm package](https://api.npmjs.org/downloads/point/2026-10-23:2026-10-31/@jidekaixin2dian%2Fdsh-file-actions) | All versions, 2026-10-23 through 2026-10-31 | 1,799 |
+| [GitHub Releases](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | `dsh-file-actions.tgz` across all releases, excluding checksums | 440 |
+
+This is a sum of requests across two channels. It may include repeat installs and automation and **does not represent unique users or deduplicated installs**. Counts are a snapshot; the links provide the npm date-range total and individual GitHub asset counts.
 
 ## Install and update
 
