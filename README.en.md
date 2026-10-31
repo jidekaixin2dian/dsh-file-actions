@@ -1,10 +1,10 @@
 # File Actions · 文件与链接操作
 
-**Turn a file reference in your conversation into the next action.**
+**Right-click a file from your agent's conversation to open, preview or use it.**
 
 [中文](README.md) · [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.19) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
 
-Once a model gives you a file, the next step is usually to open it, keep editing or take its contents elsewhere. File Actions puts application choices, reveal, copy, preview and save into one context menu across chat references, delivery cards, tool results and sidebars that expose file paths.
+File Actions is a file and link context-menu plugin for DeepSeek Harness (DSH). Right-click a file reference or delivery card in an agent conversation to open, reveal, preview, copy or save it. The menu also supports tool results and sidebars that expose file paths.
 
 ![File menu appearance example](assets/preview-glass.png)
 
@@ -16,6 +16,19 @@ Once a model gives you a file, the next step is usually to open it, keep editing
 | Locate and reference | Reveal in the file manager; copy paths, names or references with line numbers |
 | View and export | Preview supported documents and media, copy text, save a local file |
 | Share a link | Open, copy the URL or text, copy as Markdown |
+
+## Image, video and file-reference previews
+
+- **Image preview:** right-click an image reference to see an available thumbnail in the menu; click the thumbnail to enlarge it. Thumbnail reads are limited to 8 MiB.
+- **Video preview:** the menu can show a thumbnail extracted from a video. Open supported formats in the browser to play the full video. Thumbnails depend on browser decoding and are unavailable for files over 8 MiB or when decoding fails; browser previews and saved copies are limited to 64 MiB.
+- **Continue editing a delivered file:** use **Open with** from its conversation reference to search associated applications and save a preference by file type without changing OS defaults.
+- **Code reference context:** when a reference retains line numbers, preview the referenced lines and surrounding context or copy the excerpt with its source path. These actions cannot recover line numbers hidden by the host.
+
+![Right-clicking a file reference in a demonstration conversation](assets/preview-conversation.png)
+
+![Video thumbnail in a demonstration conversation's file menu](assets/preview-video.png)
+
+Screenshots are from an earlier isolated demonstration environment; the interface may change between versions.
 
 ## Downloads
 
