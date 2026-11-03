@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- 兼容验证扩展到 DSH 0.2.2-alpha.3：与 rc.5 相比，本插件绑定的官方包源码零变化
+  （对比 dsh-v0.2.1-rc.5...dsh-v0.2.2-alpha.3，仅 `.agents` 架构笔记更新）；rc.5
+  仍是默认固定宿主，保留 rc.2–rc.4 回归。
+- Extend verified host coverage to DSH 0.2.2-alpha.3. Its plugin-bound packages
+  are source-identical to rc.5; rc.5 stays the default pinned host with rc.2–rc.4
+  regressions retained.
 - 「在浏览器中打开」的非活动内容窗口收紧 sandbox：媒体、图片与纯文本不再授予
   `allow-scripts`，仅内置 PDF 查看器保留脚本上下文；opaque origin 不变。
 - Tighten the browser-preview sandbox for non-active content: media, images and
