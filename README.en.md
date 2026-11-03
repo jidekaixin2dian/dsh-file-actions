@@ -45,7 +45,7 @@ This is a sum of requests across two channels. It may include repeat installs an
 
 ## Install and update
 
-Requires **DSH >=0.2.1-rc.2 and Node >=24**. CI verifies DSH rc.2 / rc.3 / rc.4 / rc.5.
+Requires **DSH >=0.2.1-rc.2 and Node >=24**. CI verifies DSH rc.2 / rc.3 / rc.4 / rc.5 / 0.2.2-alpha.3.
 
 Search for **dsh-file-actions** in the marketplace and verify author **jidekaixin2dian**. Existing users can check updates under installed plugins. Catalog and registry mirrors may take time to refresh.
 
