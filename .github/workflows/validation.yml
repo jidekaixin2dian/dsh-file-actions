@@ -85,6 +85,15 @@ jobs:
         env:
           DFA_HOST_VERSION: 0.2.2-alpha.3
           DFA_RESULTS: work/results/022-alpha3
+      - name: Prepare 0.2.2-rc.1 compatibility host
+        run: npm run setup:host
+        env:
+          DFA_HOST_VERSION: 0.2.2-rc.1
+      - name: 0.2.2-rc.1 filesystem and browser regression
+        run: npm run test:host
+        env:
+          DFA_HOST_VERSION: 0.2.2-rc.1
+          DFA_RESULTS: work/results/022-rc1
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

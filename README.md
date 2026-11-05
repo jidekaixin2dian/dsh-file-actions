@@ -45,7 +45,7 @@ File Actions 是 DeepSeek Harness（DSH）的文件和链接右键插件。Agent
 
 ## 安装与更新
 
-需要 **DSH >=0.2.1-rc.2、Node >=24**；持续验证 DSH rc.2 / rc.3 / rc.4 / rc.5 / 0.2.2-alpha.3。
+需要 **DSH >=0.2.1-rc.2、Node >=24**；持续验证 DSH rc.2 / rc.3 / rc.4 / rc.5 / 0.2.2-alpha.3 / 0.2.2-rc.1。
 
 在插件市场搜索 **dsh-file-actions**，确认作者为 **jidekaixin2dian** 后安装；已有用户在「已安装」中检查更新。市场数据与 npm 镜像可能有同步延迟。
 
