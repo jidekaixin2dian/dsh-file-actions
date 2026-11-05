@@ -69,6 +69,10 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
       <script src="/client.js"></script><script>
       window.state={missing:true,apps:'ready',delayApps:false,delayThumb:false};
       window.calls={opens:[],apps:0,stats:0,paths:[]}; window.lastPrevented=null;
+      // Success toasts hide after 1.8s; a runner stall can outlive that window,
+      // so record every toast text as it appears and assert against the log.
+      window.toastLog=[];
+      new MutationObserver(()=>{const el=document.querySelector('.dfa-toast');const text=el&&el.textContent;if(text&&!window.toastLog.includes(text))window.toastLog.push(text)}).observe(document.body,{childList:true,subtree:true,characterData:true});
       document.addEventListener('contextmenu',e=>window.lastPrevented=e.defaultPrevented);
       window.apps=[{id:'player',name:'Media Player'},{id:'code',name:'Visual Studio Code'},
         {id:'notepad',name:'Notepad',default:true},...Array.from({length:7},(_,i)=>({id:'other'+i,name:'Other '+i}))];
@@ -727,7 +731,7 @@ it('stored associations paint immediately but invalid handlers cannot launch whi
     await expect.poll(() => page.evaluate(() => typeof (window as any).releaseApps)).toBe('function')
     expect(await page.evaluate(() => (window as any).calls.opens)).toEqual([])
     await page.evaluate(() => { (window as any).state.delayApps = false; (window as any).releaseApps() })
-    await browserExpect(page.locator('.dfa-toast')).toContainText('associations changed')
+    await browserExpect.poll(() => page.evaluate(() => (window as any).toastLog.join('\n')), { timeout: 15000 }).toContain('associations changed')
     expect(await page.evaluate(() => (window as any).calls.opens)).toEqual([])
     await page.locator('#note').click({ button: 'right' })
     await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Cursor')
@@ -968,7 +972,7 @@ it('a changed file cannot be copied as the displayed reference', async () => {
     await browserExpect(fixture.page.getByRole('button', { name: 'Copy excerpt with source' })).toBeEnabled()
     await fixture.page.evaluate(() => { (window as any).version = 'v2' })
     await fixture.page.getByRole('button', { name: 'Copy excerpt with source' }).click()
-    await browserExpect(fixture.page.locator('.dfa-toast')).toContainText('file changed')
+    await browserExpect.poll(() => fixture.page.evaluate(() => (window as any).toastLog.join('\n')), { timeout: 15000 }).toContain('file changed')
     expect(await fixture.page.evaluate(() => (window as any).copied)).toEqual([])
   } finally { await fixture.dispose() }
 })
