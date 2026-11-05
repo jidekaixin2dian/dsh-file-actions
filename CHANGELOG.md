@@ -2,12 +2,20 @@
 
 ## Unreleased
 
-- 兼容验证扩展到 DSH 0.2.2-alpha.3：与 rc.5 相比，本插件绑定的官方包源码零变化
-  （对比 dsh-v0.2.1-rc.5...dsh-v0.2.2-alpha.3，仅 `.agents` 架构笔记更新）；rc.5
-  仍是默认固定宿主，保留 rc.2–rc.4 回归。
-- Extend verified host coverage to DSH 0.2.2-alpha.3. Its plugin-bound packages
-  are source-identical to rc.5; rc.5 stays the default pinned host with rc.2–rc.4
-  regressions retained.
+- 设置页导航图标迁移到官方 `settings.section.icon` 槽位（DSH 0.2.2 新增，按分区 id
+  匹配），插件卸载后还原默认图标；未声明该槽位的宿主（rc.2–rc.5）自动回退到原有
+  DOM 装饰方式，行为不变。
+- Migrate the settings navigation icon to the official `settings.section.icon`
+  slot (new in DSH 0.2.2, matched by section id) with clean unregistration;
+  hosts that do not declare the slot (rc.2–rc.5) keep the previous DOM
+  decoration fallback unchanged.
+- 兼容验证扩展到 DSH 0.2.2-alpha.3 与 0.2.2-rc.1：0.2.2 系列引入统一右键菜单等
+  客户端变化，43 项宿主套件在两档宿主全部通过，右键菜单共存无冲突；rc.5 仍是
+  默认固定宿主，保留 rc.2–rc.4 回归。
+- Extend verified host coverage to DSH 0.2.2-alpha.3 and 0.2.2-rc.1. The 0.2.2
+  line introduces a unified context menu and other client changes; the 43-item
+  host suite passes on both hosts with the right-click behavior coexisting, and
+  rc.5 stays the default pinned host with rc.2–rc.4 retained.
 - 「在浏览器中打开」的非活动内容窗口收紧 sandbox：媒体、图片与纯文本不再授予
   `allow-scripts`，仅内置 PDF 查看器保留脚本上下文；opaque origin 不变。
 - Tighten the browser-preview sandbox for non-active content: media, images and

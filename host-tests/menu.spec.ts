@@ -18,10 +18,22 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
       import React from ${JSON.stringify(rendererRequire.resolve('react'))};
       import {createRoot} from ${JSON.stringify(rendererRequire.resolve('react-dom/client'))};
       window.React = React; window.settingsSections = [];
+      window.slotDeclared = new Set(['settings.section']);
       const root = createRoot(document.getElementById('settings'));
       window.slots = { inject(_name, fn) {return fn()}, register(meta, Component) {
+        if (!window.slotDeclared.has(meta.name)) throw new Error('slot "' + meta.name + '" is not declared');
+        if (meta.name === 'settings.section.icon') {
+          const button = document.querySelector('#settings-nav button[data-section-id="' + meta.id + '"]');
+          if (!button) return () => {};
+          const host = document.createElement('span');
+          button.prepend(host);
+          const iconRoot = createRoot(host);
+          iconRoot.render(React.createElement(Component, { size: 16, active: false }));
+          return () => {iconRoot.render(null); host.remove()};
+        }
         window.settingsSections.push(meta);
         const button = document.createElement('button');
+        button.dataset.sectionId = meta.id;
         button.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" /></svg><span></span>';
         button.querySelector('span').textContent = typeof meta.label === 'function' ? meta.label() : meta.label;
         document.getElementById('settings-nav').appendChild(button);
@@ -1108,6 +1120,20 @@ it('settings register once, react to external changes, and dispose on unload', a
     await browserExpect(page.locator('[data-dfa-nav-icon]')).toHaveCount(0)
     expect(await page.locator('#other-section svg').evaluate(el => getComputedStyle(el).display)).not.toBe('none')
     expect(await page.evaluate(() => (window as any).settingsSections.length)).toBe(0)
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('settings.section.icon renders the contributed icon on 0.2.2 hosts and unregisters cleanly', async () => {
+  const fixture = await menuFixture({ settings: true })
+  const { page } = fixture
+  try {
+    await page.evaluate(() => (window as any).slotDeclared.add('settings.section.icon'))
+    await page.evaluate(() => { const w = window as any; w.plugin.apply(w.ctx) })
+    await browserExpect(page.locator('#settings-nav button[data-section-id="file-actions"] .dfa-nav-icon svg')).toHaveCount(1)
+    await browserExpect(page.locator('[data-dfa-nav-icon]')).toHaveCount(0)
+    await page.evaluate(() => (window as any).cleanup())
+    await browserExpect(page.locator('#settings-nav button[data-section-id="file-actions"] .dfa-nav-icon')).toHaveCount(0)
     expect(fixture.errors).toEqual([])
   } finally { await fixture.dispose() }
 })
