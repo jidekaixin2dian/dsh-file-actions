@@ -244,4 +244,8 @@ it('real WorkspaceFiles and browser cover resource identity, sandbox isolation, 
     await new Promise<void>(resolve => server.close(() => resolve()))
     await host.dispose()
   }
-}, 30000)
+// The suite's heaviest test (real WorkspaceFiles, a browser and the whole
+// action surface) occasionally meets a stalled Windows runner: three CI runs
+// in three days died at the previous 30s cap while reruns and the same-tree
+// PR run passed in 3-6s. 60s budgets the stall, not the assertions.
+}, 60000)
