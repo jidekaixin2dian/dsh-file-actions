@@ -49,7 +49,10 @@ export default defineConfig({
     execArgv: vitestExecArgv,
     fileParallelism: false,
     maxWorkers: 1,
-    testTimeout: 20000,
+    // Windows CI runners occasionally stall tens of seconds mid-suite (three
+    // timeouts in three days on different hosts and specs, each green on
+    // rerun); 45s keeps the budget above the stall, not the assertions.
+    testTimeout: 45000,
     hookTimeout: 10000,
   },
 })
