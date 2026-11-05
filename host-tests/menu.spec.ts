@@ -59,7 +59,11 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
       <code id="reference" tabindex="0">note.txt</code>
       <pre><code id="fenced">fenced-only.txt</code></pre>
       <a id="link" href="https://example.com/docs">Documentation</a>
-      <div id="tree-row" class="row" role="button" title="C:/workspace/note.txt">note.txt</div></div>
+      <div id="tree-row" class="row" role="button" title="C:/workspace/note.txt">note.txt</div>
+      <div id="changed-card" data-changed-files data-single="true"><button id="changed-header" aria-describedby="changed-desc" aria-label="查看 note.txt 的改动"><span>已编辑 note.txt</span></button><span id="changed-desc" hidden>C:/workspace/changed-report.md</span></div>
+      <div id="changed-multi" data-changed-files><button id="changed-row" aria-describedby="changed-row-desc" aria-label="查看 data.csv 的改动"><span>data.csv</span></button><span id="changed-row-desc" hidden>C:/workspace/changed-data.csv</span></div>
+      <div id="changed-preview" data-changes-hover-preview><span data-changes-preview-path>C:/workspace/changed-report.md</span></div>
+      <button id="media-image" type="button"><img id="media-img" src="/api/file?path=C%3A%5Cworkspace%5Cmedia-report.png" alt="media-report.png"></button></div>
       ${initial.settings ? '<section role="dialog" aria-label="Settings fixture"><nav id="settings-nav"><button id="other-section"><svg width="16" height="16"><circle cx="8" cy="8" r="6" /></svg><span>Other settings</span></button></nav><div id="settings"></div></section>' : '<div id="settings"></div>'}<script>${settingsBoot.replaceAll('</script', '<\/script')}</script>
       <script>window.__ModuleLoader__={load(def){window.plugin=def.factory(name=>{if(name==='react')return window.React;throw Error(name)})}};</script>
       <script src="/client.js"></script><script>
@@ -75,7 +79,7 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
       window.ctx={get(name){return name==='slots'?window.slots:undefined},effect(fn){window.cleanup=fn()},sessions:{list:{getSnapshot:()=>({byId:{
         active:{id:'active',cwd:'/workspace',retainedBy:{mainView:1}}}})}},remote:{
         session:{openWorkspacePath:async request=>{calls.opens.push(request);return {ok:true,value:{opened:true}}},
-          workspacePathApplications:async()=>{calls.apps++;if(state.delayApps)await new Promise(r=>window.releaseApps=r);
+          workspacePathApplications:async(request)=>{calls.apps++;(calls.appsPaths??=[]).push(request&&request.path);if(state.delayApps)await new Promise(r=>window.releaseApps=r);
             return state.apps==='failed'?{ok:false,error:{code:'gateway/internal'}}:{ok:true,value:state.apps==='empty'?[]:apps}}},
         workspaceFiles:{stat:async(id,path)=>{calls.stats++;calls.paths.push(path);
           if((path.endsWith('missing.txt')&&state.missing)||path.endsWith('missing-prose.txt'))
@@ -324,7 +328,9 @@ it('hover prefetches the association list and a second menu reuses it', async ()
     // Hovering an explicit carrier starts the slow OS query before any click.
     await page.locator('#note').hover()
     await expect.poll(() => page.evaluate(() => (window as any).calls.apps)).toBeGreaterThan(0)
-    const afterHover = await page.evaluate(() => (window as any).calls.apps)
+    const appsForNote = () => page.evaluate(() => ((window as any).calls.appsPaths ?? [])
+      .filter((path: unknown) => String(path).endsWith('note.txt')).length)
+    const afterHover = await appsForNote()
 
     await page.locator('#note').click({ button: 'right' })
     await page.locator('[data-dfa-item="openWith"]').hover()
@@ -332,11 +338,13 @@ it('hover prefetches the association list and a second menu reuses it', async ()
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
-    // A second menu for the same extension reuses the cached answer.
+    // A second menu for the same extension reuses the cached answer. Moving the
+    // pointer across other explicit carriers (host media, changed-file rows) may
+    // legitimately prefetch those, so the reuse assertion counts note.txt only.
     await page.locator('#note').click({ button: 'right' })
     await page.locator('[data-dfa-item="openWith"]').hover()
     await browserExpect(page.locator('[data-dfa-menu="submenu"] [data-dfa-item="app:notepad"]')).toBeVisible()
-    expect(await page.evaluate(() => (window as any).calls.apps)).toBe(afterHover)
+    expect(await appsForNote()).toBe(afterHover)
     await page.keyboard.press('Escape')
     expect(errors).toEqual([])
   } finally { await fixture.dispose() }
@@ -1120,6 +1128,53 @@ it('settings register once, react to external changes, and dispose on unload', a
     await browserExpect(page.locator('[data-dfa-nav-icon]')).toHaveCount(0)
     expect(await page.locator('#other-section svg').evaluate(el => getComputedStyle(el).display)).not.toBe('none')
     expect(await page.evaluate(() => (window as any).settingsSections.length)).toBe(0)
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('changed-files cards and host media images open the menu without path attributes', async () => {
+  const fixture = await menuFixture({})
+  const { page } = fixture
+  try {
+    // The changed-files card exposes each row's resolved path through its
+    // aria-describedby target; the header button itself carries only a label.
+    const cardFired = await page.locator('#changed-header').evaluate((el) => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 })
+      el.dispatchEvent(event)
+      return event.defaultPrevented
+    })
+    expect(cardFired).toBe(true)
+    await browserExpect(page.locator('[data-dfa-menu]')).toBeVisible()
+    await browserExpect(page.locator('.dfa-name')).toContainText('changed-report.md')
+    await page.keyboard.press('Escape')
+    await browserExpect(page.locator('[data-dfa-menu]')).toHaveCount(0)
+    const rowFired = await page.locator('#changed-row').evaluate((el) => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 })
+      el.dispatchEvent(event)
+      return event.defaultPrevented
+    })
+    expect(rowFired).toBe(true)
+    await browserExpect(page.locator('.dfa-name')).toContainText('changed-data.csv')
+    await page.keyboard.press('Escape')
+    // The hover diff preview names its file through a dedicated path span.
+    const previewFired = await page.locator('#changed-preview').evaluate((el) => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 })
+      el.dispatchEvent(event)
+      return event.defaultPrevented
+    })
+    expect(previewFired).toBe(true)
+    await browserExpect(page.locator('.dfa-name')).toContainText('changed-report.md')
+    await page.keyboard.press('Escape')
+    // Markdown images render as the Host's own preview button; the path rides
+    // in the file-route URL of the inner <img>.
+    const mediaFired = await page.locator('#media-image').evaluate((el) => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 })
+      el.dispatchEvent(event)
+      return event.defaultPrevented
+    })
+    expect(mediaFired).toBe(true)
+    await browserExpect(page.locator('[data-dfa-menu]')).toBeVisible()
+    await browserExpect(page.locator('.dfa-name')).toContainText('media-report.png')
     expect(fixture.errors).toEqual([])
   } finally { await fixture.dispose() }
 })

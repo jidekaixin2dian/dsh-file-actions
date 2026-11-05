@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- 修复右键「已编辑 …」文件变更卡片无反应：卡片每行的已解析路径由宿主写在
+  `aria-describedby` 指向的隐藏节点里，直接读取即可，不解析本地化按钮文案；
+  悬停差异预览则读 `data-changes-preview-path`。
+- Fix the dead right-click on "edited …" changed-file cards: each row's
+  resolved path is published by the host in the hidden `aria-describedby`
+  target, so read that instead of parsing localized labels; the hover diff
+  preview exposes `data-changes-preview-path`.
+- 修复右键指向图片的 Markdown 链接无反应：宿主把图片渲染成自带预览按钮而非
+  `<a href>`，现从内部 `<img>` 的 `/api/file?path=…` 文件路由 URL 解析出绝对
+  路径（issue #16、#17）。
+- Fix the dead right-click on Markdown links pointing at images: the host
+  renders them as its own preview button rather than `<a href>`; the absolute
+  path is now recovered from the inner `<img>`'s `/api/file?path=…` file-route
+  URL (issues #16, #17).
+
 - 设置页导航图标迁移到官方 `settings.section.icon` 槽位（DSH 0.2.2 新增，按分区 id
   匹配），插件卸载后还原默认图标；未声明该槽位的宿主（rc.2–rc.5）自动回退到原有
   DOM 装饰方式，行为不变。
