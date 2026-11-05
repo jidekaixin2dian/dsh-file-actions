@@ -72,7 +72,7 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
       // Success toasts hide after 1.8s; a runner stall can outlive that window,
       // so record every toast text as it appears and assert against the log.
       window.toastLog=[];
-      new MutationObserver(()=>{const el=document.querySelector('.dfa-toast');const text=el&&el.textContent;if(text&&!window.toastLog.includes(text))window.toastLog.push(text)}).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true});
+      new MutationObserver(()=>{const el=document.querySelector('.dfa-toast');const text=el&&el.textContent;if(text&&!window.toastLog.includes(text))window.toastLog.push(text)}).observe(document.body,{childList:true,subtree:true,characterData:true});
       document.addEventListener('contextmenu',e=>window.lastPrevented=e.defaultPrevented);
       window.apps=[{id:'player',name:'Media Player'},{id:'code',name:'Visual Studio Code'},
         {id:'notepad',name:'Notepad',default:true},...Array.from({length:7},(_,i)=>({id:'other'+i,name:'Other '+i}))];
