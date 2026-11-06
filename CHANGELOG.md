@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.20 — 2026-11-06
 
 - 修复右键「已编辑 …」文件变更卡片无反应：卡片每行的已解析路径由宿主写在
   `aria-describedby` 指向的隐藏节点里，直接读取即可，不解析本地化按钮文案；
@@ -36,6 +36,11 @@
 - Tighten the browser-preview sandbox for non-active content: media, images and
   plain text no longer get `allow-scripts`; only the built-in PDF viewer keeps a
   scripting context. The opaque origin is unchanged.
+- 宿主套件加固：全局测试超时与重量级 runtime 用例超时上调，toast 断言改为对
+  事件记录轮询——Windows CI runner 停顿不再被误判为失败；断言语义不变。
+- Harden the host suite: longer global and heavy-runtime-test budgets, and toast
+  assertions that poll a recorded log, so stalled Windows CI runners no longer
+  read as failures; assertions are unchanged.
 
 ## 0.1.19 — 2026-10-31
 

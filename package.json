@@ -1,6 +1,6 @@
 {
   "name": "@jidekaixin2dian/dsh-file-actions",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "Act on files and links in chat: open, reveal, preview or save; choose preferred apps, inspect reference context and copy excerpts with their source.",
   "icon": "icon.svg",
   "type": "module",
