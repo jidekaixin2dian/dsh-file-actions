@@ -1,47 +1,41 @@
 # File Actions · 文件与链接操作
 
-**Right-click a file from your agent's conversation to open, preview or use it.**
+**Copy code with its source. Keep working from delivered files.**
 
-[中文](README.md) · [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.19) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
+[中文](README.md) · [npm · 0.1.20](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.20) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
 
-File Actions is a file and link context-menu plugin for DeepSeek Harness (DSH). Right-click a file reference or delivery card in an agent conversation to open, reveal, preview, copy or save it. The menu also supports tool results and sidebars that expose file paths.
+File Actions adds file and link actions to DeepSeek Harness (DSH) conversations. Right-click a code reference, delivery card or image to continue from what the agent has shown you.
 
-![File menu appearance example](assets/preview-glass.png)
-
-## Continue from a file reference
-
-| Your next step | Available actions |
+| Your next step | File Actions |
 |---|---|
-| Keep editing | Open with the default app, search applications, save a preference per file type |
-| Locate and reference | Reveal in the file manager; copy paths, names or references with line numbers |
-| View and export | Preview supported documents and media, copy text, save a local file |
-| Share a link | Open, copy the URL or text, copy as Markdown |
+| Understand a code reference | Read surrounding lines with the referenced range highlighted |
+| Share the exact excerpt | Copy code together with its source path and line range |
+| Continue editing a delivered file | Search associated applications and save a preference per file type |
+| Check an image or video | Preview a thumbnail, enlarge images or open a browser preview |
 
-## Image, video and file-reference previews
+## Read the context, keep the source
 
-- **Image preview:** right-click an image reference to see an available thumbnail in the menu; click the thumbnail to enlarge it. Thumbnail reads are limited to 8 MiB.
-- **Video preview:** the menu can show a thumbnail extracted from a video. Open supported formats in the browser to play the full video. Thumbnails depend on browser decoding and are unavailable for files over 8 MiB or when decoding fails; browser previews and saved copies are limited to 64 MiB.
-- **Continue editing a delivered file:** use **Open with** from its conversation reference to search associated applications and save a preference by file type without changing OS defaults.
-- **Code reference context:** when a reference retains line numbers, preview the referenced lines and surrounding context or copy the excerpt with its source path. These actions cannot recover line numbers hidden by the host.
-- **Paths, text and links:** copy absolute or relative paths, filenames, valid UTF-8 text and referenced lines; copy a web link's URL, text or Markdown. File-content and referenced-line reads are limited to 2 MiB.
-- **Keyboard and menu settings:** open the menu with `Shift+F10` and navigate with arrows and Enter. Choose a full or compact menu and adjust the number of context lines in reference previews.
+Right-click a reference such as `src/app.ts:42:7` or `notes.md#L42-L48` to preview its context. Copy the excerpt with its source, or copy just the referenced lines.
 
-![Right-clicking a file reference in a demonstration conversation](assets/preview-conversation.png)
+![Reference context and copying an excerpt with its source](assets/preview-reference.png)
 
-![Video thumbnail in a demonstration conversation's file menu](assets/preview-video.png)
+## Keep working from delivered files
 
-Screenshots are from an earlier isolated demonstration environment; the interface may change between versions.
+Open a file's conversation reference or changed-file card menu to choose an application, reveal the file, or copy its path, name or text. Save a preferred application for each file type.
 
-## Downloads
+![File menu with associated applications and preferences](assets/preview-apps.png)
 
-As of **2026-10-31**, the File Actions npm package and GitHub Release archives have received **2,000+ download requests** combined:
+## Preview images and videos
 
-| Source | Scope | Requests |
-|---|---|---:|
-| [npm package](https://api.npmjs.org/downloads/point/2026-10-23:2026-10-31/@jidekaixin2dian%2Fdsh-file-actions) | All versions, 2026-10-23 through 2026-10-31 | 1,799 |
-| [GitHub Releases](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | `dsh-file-actions.tgz` across all releases, excluding checksums | 440 |
+See available thumbnails in the menu, enlarge images, or open a browser preview. Video thumbnails use a frame decoded by the browser; you can also save a local copy.
 
-This is a sum of requests across two channels. It may include repeat installs and automation and **does not represent unique users or deduplicated installs**. Counts are a snapshot; the links provide the npm date-range total and individual GitHub asset counts.
+![Image preview and file actions](assets/preview-media.png)
+
+## Adjust the menu to your workflow
+
+Choose the full or compact menu, set the number of surrounding context lines, and manage application preferences. Open the menu with `Shift+F10`, then navigate with arrows and Enter.
+
+![File Actions settings](assets/preview-settings.png)
 
 ## Install and update
 
@@ -117,6 +111,14 @@ Use **Project and feedback** at the bottom of settings to visit this plugin's Gi
 **No preview window?** Check whether the browser blocked a popup.
 
 </details>
+
+## Downloads
+
+| GitHub archives | npm | Combined |
+|---:|---:|---:|
+| [623](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | [2,255](https://api.npmjs.org/downloads/point/2026-10-23:2026-11-04/@jidekaixin2dian%2Fdsh-file-actions) | **2,878 requests** |
+
+Snapshot: 2026-11-06; npm data through 2026-11-04. GitHub counts installation archives; npm excludes `0.0.0-stage`. Includes repeat installs and automation, not unique users.
 
 [Development and verification](https://github.com/jidekaixin2dian/dsh-file-actions/blob/main/docs/development.md) · [Security](SECURITY.md) · [Issues](https://github.com/jidekaixin2dian/dsh-file-actions/issues)
 
