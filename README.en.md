@@ -17,25 +17,25 @@ File Actions adds file and link actions to DeepSeek Harness (DSH) conversations.
 
 Right-click a reference such as `src/app.ts:42:7` or `notes.md#L42-L48` to preview its context. Copy the excerpt with its source, or copy just the referenced lines.
 
-![Reference context and copying an excerpt with its source](assets/preview-reference.jpg)
+![Reference context and copying an excerpt with its source](assets/preview-reference.png)
 
 ## Keep working from delivered files
 
 Open a file's conversation reference or changed-file card menu to choose an application, reveal the file, or copy its path, name or text. Save a preferred application for each file type.
 
-![File menu with associated applications and preferences](assets/preview-apps.jpg)
+![File menu with associated applications and preferences](assets/preview-apps.png)
 
 ## Preview images and videos
 
 See available thumbnails in the menu, enlarge images, or open a browser preview. Video thumbnails use a frame decoded by the browser; you can also save a local copy.
 
-![Image preview and file actions](assets/preview-media.jpg)
+![Image preview and file actions](assets/preview-media.png)
 
 ## Adjust the menu to your workflow
 
 Choose the full or compact menu, set the number of surrounding context lines, and manage application preferences. Open the menu with `Shift+F10`, then navigate with arrows and Enter.
 
-![File Actions settings](assets/preview-settings.jpg)
+![File Actions settings](assets/preview-settings.png)
 
 ## Install and update
 

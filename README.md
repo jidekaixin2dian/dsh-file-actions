@@ -17,25 +17,25 @@ File Actions 为 DeepSeek Harness（DSH）里的文件引用提供右键菜单�
 
 右键 `src/app.ts:42:7` 或 `notes.md#L42-L48`，选择「查看引用上下文」。看懂以后，用「复制片段及来源」带走引用行、相对路径和行号；也可以只复制引用行。
 
-![引用上下文与带来源复制](assets/preview-reference.jpg)
+![引用上下文与带来源复制](assets/preview-reference.png)
 
 ## 交付文件直接接着用
 
 在对话文件引用或「已编辑」变更卡片上右键，选择应用、在文件管理器中定位，或复制路径、文件名与内容。「打开方式」可以搜索系统关联应用，并按文件类型收藏首选。
 
-![交付文件菜单与首选应用](assets/preview-apps.jpg)
+![交付文件菜单与首选应用](assets/preview-apps.png)
 
 ## 图片和视频，先看再处理
 
 图片引用可以显示缩略图并放大查看；视频引用可以提取预览帧。需要继续查看时，用「在浏览器中打开」预览支持的文档、图片或媒体，也可另存到本地。
 
-![图片预览和文件操作](assets/preview-media.jpg)
+![图片预览和文件操作](assets/preview-media.png)
 
 ## 按习惯调整菜单
 
 在「设置 → 文件操作」切换完整或精简菜单，调整引用前后文行数，管理首选应用和关联应用缓存。键盘也能操作：`Shift+F10` 打开，方向键选择，`Enter` 执行。
 
-![文件操作设置](assets/preview-settings.jpg)
+![文件操作设置](assets/preview-settings.png)
 
 ## 安装与更新
 
