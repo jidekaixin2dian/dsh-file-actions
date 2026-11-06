@@ -1,47 +1,41 @@
 # 文件与链接操作 · File Actions
 
-**在对话里右键 Agent 给出的文件，打开、预览或继续处理。**
+**代码引用连同来源一起带走，交付文件右键就能接着用。**
 
-[English](README.en.md) · [npm](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.19) · [插件市场](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [下载](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [更新记录](CHANGELOG.md)
+[English](README.en.md) · [npm · 0.1.20](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.20) · [插件市场](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [下载](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [更新记录](CHANGELOG.md)
 
-File Actions 是 DeepSeek Harness（DSH）的文件和链接右键插件。Agent 在对话中给出文件后，直接右键文件引用或交付卡片，就能从插件菜单打开、定位、预览、复制或另存；也支持工具结果及提供文件路径的侧栏。
+File Actions 为 DeepSeek Harness（DSH）里的文件引用提供右键菜单。从代码行号、交付卡片或图片进入，直接查看上下文、选择应用、预览、定位和复制。
 
-![文件右键菜单外观示例](assets/preview-glass.png)
-
-## 从文件引用接着做
-
-| 想做什么 | 可以怎么做 |
+| 你想接着做什么 | File Actions 提供什么 |
 |---|---|
-| 接着编辑文件 | 用默认应用打开，或搜索「打开方式」并收藏首选应用 |
-| 找到文件与引用 | 在文件管理器定位，复制绝对 / 相对路径、文件名或带行号引用 |
-| 查看与带走内容 | 预览支持的文档、图片或媒体；复制文本；另存为本地文件 |
-| 分享链接 | 打开网页，复制链接、链接文字或 Markdown |
+| 看清 Agent 引用的代码 | 只读预览引用行和前后文，高亮所引用的范围 |
+| 把引用交给别人或另一个会话 | 一次复制引用正文、文件路径和行号 |
+| 继续编辑交付文件 | 搜索「打开方式」，按文件类型记住首选应用 |
+| 先看看图片和视频 | 菜单缩略图、图片放大、支持格式的浏览器预览 |
 
-## 图片、视频与文件引用
+## 看上下文，也带走来源
 
-- **图片预览**：右键图片引用，菜单内显示可用的缩略图；点击缩略图可以放大查看，不必先切换到图片应用。缩略图读取上限为 8 MiB。
-- **视频预览**：右键视频引用，可在菜单中查看从视频提取的画面缩略图；支持的格式还能通过「在浏览器中打开」播放完整视频。缩略图依赖浏览器解码，文件超过 8 MiB 或无法解码时不会显示；浏览器预览及另存上限为 64 MiB。
-- **交付文件接着编辑**：从当前对话的文件引用进入「打开方式」，搜索系统关联的应用并按文件类型收藏首选，不修改系统默认应用。
-- **代码引用上下文**：保留行号的引用可只读查看引用行及前后文，也可复制引用片段和来源路径；宿主未暴露行号时无法使用这些操作。
-- **路径、正文与链接**：复制绝对或相对路径、文件名、有效 UTF-8 文本与引用行；网页链接可复制地址、文字或 Markdown。文件内容和引用行限 2 MiB。
-- **键盘操作与菜单设置**：用 `Shift+F10` 打开菜单，方向键与 Enter 选择执行；可切换完整或精简菜单，并调整引用预览的前后文行数。
+右键 `src/app.ts:42:7` 或 `notes.md#L42-L48`，选择「查看引用上下文」。看懂以后，用「复制片段及来源」带走引用行、相对路径和行号；也可以只复制引用行。
 
-![演示环境中右键对话内的文件引用](assets/preview-conversation.png)
+![引用上下文与带来源复制](assets/preview-reference.jpg)
 
-![演示环境中视频引用的菜单缩略图](assets/preview-video.png)
+## 交付文件直接接着用
 
-图片来自此前的隔离演示环境；界面会随版本变化。
+在对话文件引用或「已编辑」变更卡片上右键，选择应用、在文件管理器中定位，或复制路径、文件名与内容。「打开方式」可以搜索系统关联应用，并按文件类型收藏首选。
 
-## 下载情况
+![交付文件菜单与首选应用](assets/preview-apps.jpg)
 
-截至 **2026-10-31**，File Actions 的 npm 包与 GitHub Release 安装包合计 **2,000+ 次下载请求**：
+## 图片和视频，先看再处理
 
-| 来源 | 统计范围 | 请求次数 |
-|---|---|---:|
-| [npm 包](https://api.npmjs.org/downloads/point/2026-10-23:2026-10-31/@jidekaixin2dian%2Fdsh-file-actions) | 2026-10-23 至 2026-10-31，全部版本 | 1,799 |
-| [GitHub Release](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | 全部版本的 `dsh-file-actions.tgz`，不含校验文件 | 440 |
+图片引用可以显示缩略图并放大查看；视频引用可以提取预览帧。需要继续查看时，用「在浏览器中打开」预览支持的文档、图片或媒体，也可另存到本地。
 
-这是两种渠道的请求次数之和，可能包含重复安装与自动化请求，**不代表独立用户数或去重安装量**。数字为当日快照；来源链接分别提供 npm 区间统计和 GitHub 各资源计数。
+![图片预览和文件操作](assets/preview-media.jpg)
+
+## 按习惯调整菜单
+
+在「设置 → 文件操作」切换完整或精简菜单，调整引用前后文行数，管理首选应用和关联应用缓存。键盘也能操作：`Shift+F10` 打开，方向键选择，`Enter` 执行。
+
+![文件操作设置](assets/preview-settings.jpg)
 
 ## 安装与更新
 
@@ -119,6 +113,14 @@ dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions
 **预览没有打开？** 检查浏览器是否拦截了弹窗。
 
 </details>
+
+## 下载情况
+
+| GitHub 安装包 | npm | 合计 |
+|---:|---:|---:|
+| [623](https://api.github.com/repos/jidekaixin2dian/dsh-file-actions/releases?per_page=100) | [2,255](https://api.npmjs.org/downloads/point/2026-10-23:2026-11-04/@jidekaixin2dian%2Fdsh-file-actions) | **2,878 次** |
+
+统计于 2026-11-06；npm 数据截至 2026-11-04。GitHub 仅计安装包，npm 排除 `0.0.0-stage`。下载包含重复安装与自动化请求，不是独立用户数。
 
 [开发与验证](https://github.com/jidekaixin2dian/dsh-file-actions/blob/main/docs/development.md) · [安全说明](SECURITY.md) · [反馈问题](https://github.com/jidekaixin2dian/dsh-file-actions/issues)
 
