@@ -741,18 +741,26 @@ it('stored associations paint immediately but invalid handlers cannot launch whi
 it('failed application opens invalidate associations without retrying the action', async () => {
   const fixture = await menuFixture()
   const { page } = fixture
+  const appsForNote = () => page.evaluate(() => ((window as any).calls.appsPaths ?? [])
+    .filter((file: string) => file === '/workspace/note.txt').length)
   try {
     await page.locator('#note').click({ button: 'right' })
     await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Visual Studio Code')
+    expect(await appsForNote()).toBe(1)
     await page.evaluate(() => {
       const w = window as any
       w.apps = [{ id: 'cursor', name: 'Cursor' }]
       w.ctx.remote.session.openWorkspacePath = async request => { w.calls.opens.push(request); return { ok: false } }
     })
     await page.locator('[data-dfa-item="editor"]').click()
-    await expect.poll(() => page.evaluate(() => (window as any).calls.apps)).toBe(2)
+    await browserExpect.poll(() => page.evaluate(() => (window as any).toastLog)).toContain('Open failed')
+    // Moving off the closed menu can also prefetch an unrelated file.
+    await page.locator('#image').hover()
+    await expect.poll(() => page.evaluate(() => (window as any).calls.appsPaths)).toContain('/workspace/image.svg')
+    await expect.poll(appsForNote).toBe(2)
     await page.locator('#note').click({ button: 'right' })
     await browserExpect(page.locator('[data-dfa-item="editor"]')).toContainText('Cursor')
+    expect(await appsForNote()).toBe(2)
     expect(await page.evaluate(() => (window as any).calls.opens.length)).toBe(1)
   } finally { await fixture.dispose() }
 })
