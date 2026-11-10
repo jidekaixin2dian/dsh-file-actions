@@ -1400,8 +1400,8 @@ it('a relative reference several directories down also resolves', async () => {
     await page.locator('[data-dfa-item="open"]').click()
     expect(await page.evaluate(() => (window as any).calls.opens))
       .toEqual([{ path: '/workspace/review-1/src/packages/docs/HANDOFF.md' }])
-    // A handful of probes for a three-level fixture; a full-tree scan would be far above    // A handful of probes for a three-level fixture; a full-tree scan would be far above
-    // this ceiling, so it still catches a regression without pinning platform timing.    // this ceiling, so it still catches a regression without pinning platform timing.
+    // A handful of probes for a three-level fixture; a full-tree scan would be far above
+    // this ceiling, so it still catches a regression without pinning platform timing.
     expect(await page.evaluate(() => (window as any).calls.stats)).toBeLessThanOrEqual(10)
   } finally { await fixture.dispose() }
 })
