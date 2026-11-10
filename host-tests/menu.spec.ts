@@ -1302,7 +1302,7 @@ it('settings dropdowns animate both directions and commit keyboard and pointer c
     await context.click()
     await page.getByRole('option', { name: '16 lines before and after', exact: true }).click()
     await browserExpect(context).toHaveAttribute('data-value', '16')
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('dsh-file-actions.settings.v1')!))).toEqual({ menuMode: 'compact', contextLines: 16 })
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('dsh-file-actions.settings.v1')!))).toEqual({ menuMode: 'compact', glass: 'on', contextLines: 16 })
     expect(fixture.errors).toEqual([])
   } finally { await fixture.dispose() }
 })
