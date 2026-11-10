@@ -127,13 +127,41 @@ test('classify maps extensions onto menu capabilities', () => {
   assert.equal(image.canBrowser, true)
 
   assert.equal(api.classify('a.html', false).kind, 'html')
-  assert.equal(api.classify('a.svg', false).kind, 'html')
+  assert.equal(api.classify('a.svg', false).kind, 'svg')
+  assert.equal(api.classify('a.xlsx', false).kind, 'sheet')
+  assert.equal(api.classify('a.pptx', false).kind, 'slides')
+  assert.equal(api.classify('a.db', false).kind, 'database')
+  assert.equal(api.classify('a.epub', false).kind, 'ebook')
+  assert.equal(api.classify('a.et', false).kind, 'sheet')
+  assert.equal(api.classify('a.ps1', false).kind, 'script')
+  assert.equal(api.classify('a.bat', false).kind, 'script')
+  assert.equal(api.classify('a.exe', false).kind, 'exec')
+  assert.equal(api.classify('a.msix', false).kind, 'exec')
+  assert.equal(api.classify('a.reg', false).kind, 'data')
+  assert.equal(api.classify('a.ps1', false).canCopyText, true)
+  assert.equal(api.classify('a.exe', false).canCopyText, false)
+  assert.equal(api.classify('a.heic', false).canBrowser, false)
+  assert.equal(api.classify('a.png', false).canBrowser, true)
+  assert.equal(api.classify('a.ps1xml', false).kind, 'data')
+  assert.equal(api.classify('a.psd1', false).kind, 'data')
+  assert.equal(api.classify('Dockerfile', false).kind, 'text')
+  assert.equal(api.classify('Makefile', false).kind, 'text')
+  assert.equal(api.classify('a.wav', false).canBrowser, true)
+  assert.equal(api.classify('a.ape', false).canBrowser, false)
   assert.equal(api.classify('a.pdf', false).kind, 'pdf')
   assert.equal(api.classify('a.md', false).kind, 'markdown')
   assert.equal(api.classify('a.docx', false).kind, 'office')
   assert.equal(api.classify('a.zip', false).kind, 'archive')
   assert.equal(api.classify('a.exe', false).kind, 'exec')
   assert.equal(api.classify('a.exe', false).canCopyText, false)
+  assert.equal(api.classify('a.heic', false).canBrowser, false)
+  assert.equal(api.classify('a.png', false).canBrowser, true)
+  assert.equal(api.classify('a.ps1xml', false).kind, 'data')
+  assert.equal(api.classify('a.psd1', false).kind, 'data')
+  assert.equal(api.classify('Dockerfile', false).kind, 'text')
+  assert.equal(api.classify('Makefile', false).kind, 'text')
+  assert.equal(api.classify('a.wav', false).canBrowser, true)
+  assert.equal(api.classify('a.ape', false).canBrowser, false)
 
   const dir = api.classify('D:\\repo', true)
   assert.equal(dir.kind, 'dir')
@@ -610,7 +638,7 @@ test('subtitles, video and audio are classified for the menu', () => {
   assert.equal(mp3.kind, 'audio')
   assert.equal(mp3.canBrowser, true)
   assert.equal(api.classify('a.psd', false).kind, 'design')
-  assert.equal(api.classify('a.ipynb', false).kind, 'code')
+  assert.equal(api.classify('a.ipynb', false).kind, 'notebook')
   assert.equal(api.mimeOf('a.mp4'), 'video/mp4')
   assert.equal(api.mimeOf('a.mp3'), 'audio/mpeg')
 })
@@ -847,6 +875,9 @@ test('each file kind has a glyph and a tile hue', () => {
     'a.mp3': 'audio', 'a.flac': 'audio',
     'a.txt': 'text', 'a.md': 'markdown', 'a.html': 'html', 'a.pdf': 'pdf',
     'a.png': 'image', 'a.docx': 'office', 'a.zip': 'archive', 'a.unknown-ext': 'binary',
+    'a.svg': 'svg', 'a.xlsx': 'sheet', 'a.pptx': 'slides', 'a.ipynb': 'notebook',
+    'a.sqlite': 'database', 'a.epub': 'ebook', 'a.wps': 'office', 'a.dps': 'slides',
+    'a.exe': 'exec', 'a.ps1': 'script', 'a.reg': 'data', 'a.msix': 'exec',
   }
   for (const [name, kind] of Object.entries(table)) {
     assert.equal(api.classify(name, false).kind, kind, name)
@@ -969,17 +1000,17 @@ test('client settings default safely, persist valid choices, and preserve other 
   const map = new Map([['dsh-file-actions.preferred-apps.v1', '{".txt":"notepad"}']])
   const storage = { getItem: key => map.get(key), setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key) }
   const settings = api.clientPreferences(storage)
-  same(settings.get(), { menuMode: 'full', contextLines: 8 })
+  same(settings.get(), { menuMode: 'full', glass: 'on', contextLines: 8 })
   assert.equal(settings.set({ menuMode: 'compact', contextLines: 16 }), true)
-  same(api.clientPreferences(storage).get(), { menuMode: 'compact', contextLines: 16 })
+  same(api.clientPreferences(storage).get(), { menuMode: 'compact', glass: 'on', contextLines: 16 })
   map.set('dsh-file-actions.settings.v1', '{"menuMode":"unsupported","contextLines":100000}')
-  same(settings.get(), { menuMode: 'full', contextLines: 8 })
+  same(settings.get(), { menuMode: 'full', glass: 'on', contextLines: 8 })
   assert.equal(settings.reset(), true)
   assert.equal(map.get('dsh-file-actions.preferred-apps.v1'), '{".txt":"notepad"}')
   const blocked = api.clientPreferences({ getItem: key => map.get(key), setItem() { throw Error('denied') }, removeItem() { throw Error('denied') } })
   assert.equal(blocked.set({ menuMode: 'compact' }), false)
   assert.equal(blocked.reset(), false)
-  same(blocked.get(), { menuMode: 'full', contextLines: 8 })
+  same(blocked.get(), { menuMode: 'full', glass: 'on', contextLines: 8 })
 })
 
 test('preferred applications can be listed and removed without erasing unrelated client storage', () => {
@@ -1012,4 +1043,26 @@ test('reference context preference changes the window without changing the copie
   assert.equal(api.referenceContext(text, { line: 50 }, 16).rows.length, 33)
   assert.equal(api.referenceContext(text, { line: 50 }, -2).rows.length, 17)
   assert.equal(api.referencedText(text, { line: 50 }), 'line 50')
+})
+
+test('a silent application open is only reported when nothing took focus', () => {
+  assert.equal(api.shouldHintSilentOpen(true, true), true)
+  assert.equal(api.shouldHintSilentOpen(true, false), false)
+  assert.equal(api.shouldHintSilentOpen(false, true), false)
+  assert.equal(api.shouldHintSilentOpen(undefined, true), false)
+  assert.ok(zh.openNoEffect && en.openNoEffect)
+  assert.notEqual(zh.openNoEffect, en.openNoEffect)
+})
+
+test('glass stays on unless it is explicitly switched off', () => {
+  const map = new Map()
+  const storage = { getItem: key => map.get(key), setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key) }
+  const prefs = api.clientPreferences(storage)
+  assert.equal(prefs.get().glass, 'on')
+  assert.equal(prefs.set({ glass: 'off' }), true)
+  assert.equal(prefs.get().glass, 'off')
+  assert.equal(prefs.set({ glass: 'sideways' }), true)
+  assert.equal(prefs.get().glass, 'on')
+  assert.equal(prefs.set({ menuMode: 'compact' }), true)
+  assert.deepEqual([prefs.get().menuMode, prefs.get().glass], ['compact', 'on'])
 })

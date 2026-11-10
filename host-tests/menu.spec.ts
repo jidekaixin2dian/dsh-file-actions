@@ -54,7 +54,7 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
       <button id="image" data-file-actions-path="image.svg">image.svg</button>
       <button id="image2" data-file-actions-path="image2.svg">image2.svg</button>
       <button id="missing" data-file-actions-path="missing.txt">missing.txt</button>
-      <code id="guess" tabindex="0">guess.txt</code><span id="prose">missing-prose.txt</span>
+      <code id="guess" tabindex="0">guess.txt</code><code id="nested" tabindex="0">docs/HANDOFF.md</code><span id="prose">missing-prose.txt</span>
       <span id="plain" tabindex="0">plain.txt</span>
       <code id="reference" tabindex="0">note.txt</code>
       <pre><code id="fenced">fenced-only.txt</code></pre>
@@ -86,10 +86,13 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
           workspacePathApplications:async(request)=>{calls.apps++;(calls.appsPaths??=[]).push(request&&request.path);if(state.delayApps)await new Promise(r=>window.releaseApps=r);
             return state.apps==='failed'?{ok:false,error:{code:'gateway/internal'}}:{ok:true,value:state.apps==='empty'?[]:apps}}},
         workspaceFiles:{stat:async(id,path)=>{calls.stats++;calls.paths.push(path);
+          if(state.exists!==undefined){const live=Array.isArray(state.exists)?state.exists:[state.exists];if(!live.includes(path))return {ok:false,error:{code:'workspace-file/not-found'}}}
           if((path.endsWith('missing.txt')&&state.missing)||path.endsWith('missing-prose.txt'))
             return {ok:false,error:{code:'workspace-file/not-found'}};
           return {ok:true,value:{absolutePath:path,bytes:32,version:'v1'}}},
-          list:async()=>({ok:false,error:{code:'workspace-file/not-found'}}),
+          list:async(id,path)=>state.dirs&&state.dirs[path]
+            ?{ok:true,value:{path,entries:state.dirs[path],truncated:false}}
+            :{ok:false,error:{code:'workspace-file/not-found'}},
           readBytes:async(id,path)=>{if(state.delayThumb)await new Promise(r=>{const w=window;w.thumbWaiters??=[];
               w.thumbWaiters.push(r);w.releaseThumb=()=>{w.thumbWaiters.splice(0).forEach(fn=>fn())}});
             const marker=path.includes('image2')?'#00ff00':'#ff0000';
@@ -1362,5 +1365,92 @@ it('settings dropdowns fit viewport edges, follow resize and respect reduced mot
     await context.press('Escape')
     await browserExpect(page.locator('.dfa-select-menu')).toHaveCount(0)
     expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('a relative reference that only exists one directory down still resolves', async () => {
+  const fixture = await menuFixture({ state: { missing: true, exists: '/workspace/review-1/docs/HANDOFF.md', dirs: {
+    '/workspace': [{ name: 'review-1', type: 'directory' }],
+    '/workspace/review-1': [{ name: 'notes.txt', type: 'file' }],
+  } } })
+  const { page } = fixture
+  try {
+    await page.locator('#nested').click({ button: 'right' })
+    const menu = page.locator('[data-dfa-menu]').first()
+    await browserExpect(menu).toBeVisible()
+    await browserExpect(menu).toContainText('review-1/docs/HANDOFF.md')
+    await browserExpect(menu).not.toContainText('File not found')
+    await page.locator('[data-dfa-item="open"]').click()
+    expect(await page.evaluate(() => (window as any).calls.opens)).toEqual([{ path: '/workspace/review-1/docs/HANDOFF.md' }])
+  } finally { await fixture.dispose() }
+})
+
+it('a relative reference several directories down also resolves', async () => {
+  const fixture = await menuFixture({ state: { missing: true, exists: '/workspace/review-1/src/packages/docs/HANDOFF.md', dirs: {
+    '/workspace': [{ name: 'review-1', type: 'directory' }],
+    '/workspace/review-1': [{ name: 'src', type: 'directory' }],
+    '/workspace/review-1/src': [{ name: 'packages', type: 'directory' }],
+  } } })
+  const { page } = fixture
+  try {
+    await page.locator('#nested').click({ button: 'right' })
+    const menu = page.locator('[data-dfa-menu]').first()
+    await browserExpect(menu).toBeVisible()
+    await browserExpect(menu).toContainText('review-1/src/packages/docs/HANDOFF.md')
+    await page.locator('[data-dfa-item="open"]').click()
+    expect(await page.evaluate(() => (window as any).calls.opens))
+      .toEqual([{ path: '/workspace/review-1/src/packages/docs/HANDOFF.md' }])
+    // The walk probes one directory per level here, plus the original miss and one
+    // confirmation stat — a generous ceiling that still fails on a full-tree scan.
+    expect(await page.evaluate(() => (window as any).calls.stats)).toBeLessThanOrEqual(6)
+  } finally { await fixture.dispose() }
+})
+
+it('an ambiguous relative reference keeps reporting the file as missing', async () => {
+  const fixture = await menuFixture({ state: { missing: true, exists: ['/workspace/alpha/docs/HANDOFF.md', '/workspace/beta/docs/HANDOFF.md'], dirs: {
+    '/workspace': [{ name: 'alpha', type: 'directory' }, { name: 'beta', type: 'directory' }],
+  } } })
+  const { page } = fixture
+  try {
+    await page.locator('#nested').click({ button: 'right' })
+    const menu = page.locator('[data-dfa-menu]').first()
+    await browserExpect(menu).toBeVisible()
+    await browserExpect(menu).toContainText('File not found')
+    expect(await page.evaluate(() => (window as any).calls.opens)).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('glass surfaces follow the wallpaper plugin gate', async () => {
+  const fixture = await menuFixture({ storage: { 'dsh-file-actions.settings.v1': JSON.stringify({ glass: 'on' }) } })
+  const { page } = fixture
+  try {
+    await page.evaluate(() => {
+      document.body.setAttribute('data-we-glass-floaters', '')
+      const root = document.documentElement.style
+      root.setProperty('--we-floaters-blur', '20px')
+      root.setProperty('--we-floaters-alpha', '0.6')
+      root.setProperty('--we-readability-floor', '0.82')
+      root.setProperty('--we-surface-tint-light', '#ffffff')
+    })
+    await page.locator('#note').click({ button: 'right' })
+    const menu = page.locator('[data-dfa-menu]').first()
+    await browserExpect(menu).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.dataset.dfaGlass)).toBe('on')
+    const filter = await menu.evaluate(el => getComputedStyle(el).backdropFilter || (getComputedStyle(el) as any).webkitBackdropFilter)
+    expect(filter).toContain('blur')
+  } finally { await fixture.dispose() }
+})
+
+it('glass can be switched off and the menu stays opaque', async () => {
+  const fixture = await menuFixture({ storage: { 'dsh-file-actions.settings.v1': JSON.stringify({ glass: 'off' }) } })
+  const { page } = fixture
+  try {
+    await page.evaluate(() => document.body.setAttribute('data-we-glass-floaters', ''))
+    await page.locator('#note').click({ button: 'right' })
+    const menu = page.locator('[data-dfa-menu]').first()
+    await browserExpect(menu).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.dataset.dfaGlass)).toBe('off')
+    const filter = await menu.evaluate(el => getComputedStyle(el).backdropFilter || (getComputedStyle(el) as any).webkitBackdropFilter)
+    expect(filter === 'none' || filter === '').toBe(true)
   } finally { await fixture.dispose() }
 })

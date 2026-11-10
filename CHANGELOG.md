@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.1.21 — 2026-11-10
+
+- 菜单、子菜单与提示条接入壁纸插件的玻璃效果：只在它的浮层玻璃门
+  （`body[data-we-glass-floaters]`）打开时生效，模糊与透明度沿用它写出的
+  `--we-floaters-*` 变量，底色仍用插件自己按主题算出的可读性底，深色主题实测
+  8.0:1、浅色 14.9:1；设置页新增「玻璃效果」开关，系统开启「减少透明度」时自动
+  退回不透明。
+- Glass surfaces for the menu, submenu and toast, driven by the wallpaper plugin's
+  floating-glass gate (`body[data-we-glass-floaters]`): its `--we-floaters-*` values
+  supply blur and alpha while this plugin keeps its own theme-derived floor — 8.0:1
+  measured in dark and 14.9:1 in light. A new "Glass effect" setting can switch it
+  off, and system-level reduced transparency falls back to an opaque surface.
+- 相对路径找不到时向下查找：散文里常写 `docs/x.md` 而文件在更深的子目录，现在会
+  逐层（最多 3 层）并行探测，命中即停，最多 48 次 stat、900ms 预算，只接受唯一命中；
+  命中缓存 60s、未命中 5 分钟，缓存上限 200 条。
+- Resolve a relative reference that only exists deeper in the tree: walk up to three
+  levels in parallel batches, stop at the first matching level, cap at 48 stats and a
+  900 ms budget, and accept only a single match. Hits are cached for 60 s, misses for
+  5 minutes, with a 200-entry ceiling.
+- 指定应用打开没有真正拉起程序时给出提示：宿主在 shell 接受请求时就返回成功，因此
+  点击后 1.8 秒若焦点仍在本页，提示「已请求打开；若没有窗口出现，可能是该应用启动
+  失败或被系统拦截」，连续点击只保留最后一次。
+- Say something when a specific-application open does not actually raise a window: the
+  Host reports success as soon as the shell accepts the request, so 1.8 s after the
+  click a still-focused page raises a hint instead of a silent no-op. Repeated clicks
+  keep only the latest hint.
+- 文件类型扩展：新增脚本、表格、幻灯片、矢量图、Notebook、数据库、电子书七类，
+  各有独立图标与色相；补齐 wps/et/dps、msix/appx/scr/sys、vbs/reg/inf/psd1 等扩展名，
+  修复 `.exe` 一直在用兜底图标的问题；「在浏览器中打开」只对 Chromium 真能解码的
+  图片格式开放，避免打开一张破图。
+- More file kinds: scripts, spreadsheets, slides, vector graphics, notebooks,
+  databases and e-books now each have their own glyph and hue; extensions such as
+  wps/et/dps, msix/appx/scr/sys and vbs/reg/inf/psd1 are recognised, `.exe` no longer
+  falls back to the generic glyph, and "Open in browser" is limited to the image
+  formats Chromium can actually decode.
 ## 0.1.20 — 2026-11-06
 
 - 修复右键「已编辑 …」文件变更卡片无反应：卡片每行的已解析路径由宿主写在
