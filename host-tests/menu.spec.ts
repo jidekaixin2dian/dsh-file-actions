@@ -1547,14 +1547,22 @@ it('closing a nested-path lookup stops further filesystem probes', async () => {
   } } })
   const { page } = fixture
   try {
+    // Reset the probe log so this case only covers the lookup it opens: hovering
+    // the fixture can warm an unrelated path, and an absolute page-wide count made
+    // the assertion depend on that traffic.
+    await page.evaluate(() => { const w = window as any; w.calls.stats = 0; w.calls.paths.length = 0 })
     await page.locator('#nested').click({ button: 'right' })
     await browserExpect(page.locator('[data-dfa-menu]')).toContainText('Looking for the file')
     await page.keyboard.press('Escape')
     await expect.poll(() => page.evaluate(() => (window as any).state.listAborted)).toBe(true)
+    const before = await page.evaluate(() => (window as any).calls)
     await page.evaluate(() => (window as any).releaseList())
     await page.waitForTimeout(100)
-    const calls = await page.evaluate(() => (window as any).calls)
-    expect(calls.stats, JSON.stringify(calls.paths)).toBe(1)
+    const after = await page.evaluate(() => (window as any).calls)
+    // The invariant is "nothing new after the cancel", not a page-wide total: the
+    // cancelled walk must not keep probing queued children once the menu is gone.
+    expect(after.stats, `probes continued after cancel: ${JSON.stringify(after.paths)}`).toBe(before.stats)
+    expect(before.paths, JSON.stringify(before.paths)).toContain('/workspace/docs/HANDOFF.md')
     expect(fixture.errors).toEqual([])
   } finally {
     await page.evaluate(() => (window as any).releaseList?.()).catch(() => {})
