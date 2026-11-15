@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.1.22 — 2026-11-15
+
+- 深路径查找（散文里写成 `docs/x.md`，文件却在更深的目录）不再越界：目录列举与
+  文件探测共用同一份 48 次调用、900ms 预算，上一层的子目录数量不会再被放大成整盘
+  扫描。
+- 同一次查找只在整层扫描完整时才采信：预算用尽、目录列举失败或宿主报错都判为
+  「查找未完成，请重试」，既不打开可能错误的同名文件，也不把一次临时故障缓存成
+  5 分钟的「找不到」。
+- 关闭菜单、切换会话或卸载插件会中止正在进行的查找，`AbortSignal` 一路传到宿主的
+  文件 I/O，排队中的路径不再继续 `stat`。
+- 聊天里单独的 `预算.xlsx`、`slides.pptx`、`book.epub`、`setup.msix` 这类文件名重新
+  可识别：识别与分类共用同一份扩展名清单，不再各维护一套。
+- POSIX 路径中的反斜杠是合法文件名字符，不再被当成目录分隔符把
+  `/tmp/repo\secret.txt` 认成工作区内的文件；`~/repo/a.txt` 也不再去掉开头的 `~`。
+- 指定应用打开后的 1.8 秒提示改用当前菜单的会话与代际判断，不再引用作用域外的变量，
+  在定时器里抛 `ReferenceError`。
+- 提示条的对比度底色在每次显示时重取（菜单已关闭时仍然可读），连续提示只保留最后一帧
+  动画；卸载会清掉提示条、玻璃效果标记和待触发的定时器，卸载之后才返回的动作也不会再
+  画出一条新的提示条。
+- 大图预览打开后按 Tab 焦点留在对话框内，不再跑到浏览器界面并顺带关掉整个菜单；
+  指针打开菜单后第一次按 ↑ 直接选到最后一行。
+- 开发文档中的宿主 pin 与 CI 覆盖范围更新为默认 rc.5，并覆盖
+  rc.2/rc.3/rc.4/0.2.2-alpha.3/0.2.2-rc.1。
+- The nested-path lookup that resolves a prose reference like `docs/x.md` can no longer
+  run past its budget: directory expansion and file probes share one 48-call, 900 ms
+  budget, so one wide directory level is not multiplied into a full-tree scan.
+- A lookup result is trusted only after a level was scanned completely. An exhausted
+  budget, a failed directory listing or a Host error now report "Search stopped early;
+  try again" instead of opening a possibly wrong same-named file, and a transient
+  failure is no longer cached as a five-minute miss.
+- Closing the menu, switching sessions or unloading the plugin aborts the running
+  lookup; the `AbortSignal` reaches the Host file I/O, so queued paths stop issuing
+  `stat` calls.
+- Bare filenames such as `预算.xlsx`, `slides.pptx`, `book.epub` or `setup.msix` are
+  recognised in chat text again: detection and classification now share one extension
+  inventory instead of keeping two lists.
+- A backslash in a POSIX path is a legal filename character, so `/tmp/repo\secret.txt`
+  is no longer treated as workspace content; a `~/repo/a.txt` reference keeps its `~`.
+- The 1.8 s hint after opening a specific application now asks the current menu whether
+  it is still live instead of referencing an out-of-scope variable and throwing a
+  `ReferenceError` inside the timer.
+- The toast re-reads its contrast floor on every show (it stays readable after the menu
+  closed) and keeps a single fade-in frame; unloading removes the toast, the glass
+  marker and pending timers, and an action that settles after unload can no longer
+  paint a new toast.
+- Tab keeps focus inside the full-size image dialog instead of leaving for the browser
+  chrome and closing the whole menu, and the first ArrowUp on a pointer-opened menu
+  selects the last row.
+- The development notes now pin rc.5 as the default Host and list the CI coverage
+  (rc.2/rc.3/rc.4/rc.5/0.2.2-alpha.3/0.2.2-rc.1).
+
 ## 0.1.21 — 2026-11-10
 
 - 菜单、子菜单与提示条接入壁纸插件的玻璃效果：只在它的浮层玻璃门
