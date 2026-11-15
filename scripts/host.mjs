@@ -6,9 +6,9 @@ const hosts = {
   'rc.4': { tag: 'dsh-v0.2.1-rc.4', sha: '504a01a9578abc2c6f1fb896b1dc322c9fe24f66', dir: 'rc4' },
   'rc.5': { tag: 'dsh-v0.2.1-rc.5', sha: 'b830ec950faba0a46dda564be3e2d854afed94f1', dir: 'rc5' },
   // The 0.2.2 line moved off the dsh-v0.2.1 tag prefix, so entries carry full
-  // tags. alpha.3 and rc.1 pass the same 43-item suite here (the unified
-  // context menu and settings.section.icon both land in the alpha line); rc.5
-  // stays the default pinned host with rc.2-rc.4 retained.
+  // tags. alpha.3 and rc.1 pass the same suite here (the unified context menu and
+  // settings.section.icon both land in the alpha line); rc.5 stays the default
+  // pinned host with rc.2-rc.4 retained.
   '0.2.2-alpha.3': { tag: 'dsh-v0.2.2-alpha.3', sha: '05b1cae8db6e674c5685101494d4eec24652424a', dir: '022-alpha3' },
   '0.2.2-rc.1': { tag: 'dsh-v0.2.2-rc.1', sha: '66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db', dir: '022-rc1' },
 }

@@ -16,5 +16,8 @@ const result = spawnSync(process.execPath, ['node_modules/vitest/vitest.mjs', 'r
 const log = (result.stdout || '') + (result.stderr || '')
 fs.writeFileSync(join(results, 'host.log'), log)
 fs.writeFileSync(join(results, 'environment.json'), JSON.stringify({ host: sha, node: process.version, platform: process.platform, exitCode: result.status, isolatedHome: home }, null, 2))
+// The isolated DSH home is throwaway. Leaving it behind littered the checkout with
+// one directory per local run, and a locked file must not turn into a failed suite.
+try { fs.rmSync(home, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 }) } catch { /* best effort */ }
 process.stdout.write(log)
 process.exitCode = result.status ?? 1

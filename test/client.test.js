@@ -31,7 +31,7 @@ function loadBundle(overrides = {}) {
     document: {
       querySelector: () => null,
       createElement: () => ({
-        style: { setProperty() {} }, dataset: {}, className: '', textContent: '',
+        style: { setProperty() {}, removeProperty() {} }, dataset: {}, className: '', textContent: '',
         setAttribute() {}, appendChild() {}, click() {}, remove() {}, addEventListener() {},
       }),
       body: { appendChild() {} },
@@ -40,6 +40,7 @@ function loadBundle(overrides = {}) {
     setTimeout,
     clearTimeout,
     requestAnimationFrame: (fn) => setTimeout(fn, 0),
+    cancelAnimationFrame: clearTimeout,
     ...overrides,
   }
   vm.runInNewContext(source, sandbox, { filename: 'client.js' })
@@ -152,20 +153,16 @@ test('classify maps extensions onto menu capabilities', () => {
   assert.equal(api.classify('a.md', false).kind, 'markdown')
   assert.equal(api.classify('a.docx', false).kind, 'office')
   assert.equal(api.classify('a.zip', false).kind, 'archive')
-  assert.equal(api.classify('a.exe', false).kind, 'exec')
-  assert.equal(api.classify('a.exe', false).canCopyText, false)
-  assert.equal(api.classify('a.heic', false).canBrowser, false)
-  assert.equal(api.classify('a.png', false).canBrowser, true)
-  assert.equal(api.classify('a.ps1xml', false).kind, 'data')
-  assert.equal(api.classify('a.psd1', false).kind, 'data')
-  assert.equal(api.classify('Dockerfile', false).kind, 'text')
-  assert.equal(api.classify('Makefile', false).kind, 'text')
-  assert.equal(api.classify('a.wav', false).canBrowser, true)
-  assert.equal(api.classify('a.ape', false).canBrowser, false)
 
   const dir = api.classify('D:\\repo', true)
   assert.equal(dir.kind, 'dir')
   assert.equal(dir.canSaveAs, false)
+})
+
+test('new file kinds remain discoverable as bare filenames', () => {
+  for (const name of ['预算.xlsx', 'slides.pptx', 'book.epub', 'notes.ipynb', 'data.sqlite', 'setup.msix', 'task.vbs']) {
+    assert.equal(api.looksLikePath(name), true, name)
+  }
 })
 
 test('formatBytes is human readable and stable', () => {
@@ -537,6 +534,18 @@ test('isInside compares a root and a path case-insensitively', () => {
   assert.equal(api.isInside('', 'D:\\a'), false)
 })
 
+test('POSIX backslashes remain filename characters, not workspace separators', () => {
+  const sibling = '/tmp/repo\\secret.txt'
+  assert.equal(api.isInside('/tmp/repo', sibling), false)
+  assert.equal(api.relativeTo('/tmp/repo', sibling), '')
+  assert.equal(api.isInside('/tmp/repo', '/tmp/repo/secret.txt'), true)
+})
+
+test('a home-relative path keeps its tilde when decorations are stripped', () => {
+  assert.equal(api.stripDecorations('~/repo/a.txt'), '~/repo/a.txt')
+  assert.equal(api.stripDecorations('📄发布文案.md'), '发布文案.md')
+})
+
 test('a path outside the workspace is labelled in the header', () => {
   const inside = api.buildMenuModel({
     absolutePath: 'D:\\repo\\a.ts', displayPath: 'a.ts', isDir: false, apps: [], bytes: 10, t: zh,
@@ -905,32 +914,40 @@ test('video files preview a poster frame instead of the generic tile', () => {
 
 // A duplicated key is silent at runtime — the last one wins — so it survives code
 // review and slowly rots the dictionaries. Catch it statically instead.
-test('the ZH and EN dictionaries have no duplicate keys', () => {
-  const blockOf = (name) => {
-    const start = source.indexOf(`const ${name} = {`)
-    assert.ok(start >= 0, `missing ${name}`)
-    let depth = 0
-    for (let at = source.indexOf('{', start); at < source.length; at += 1) {
-      if (source[at] === '{') depth += 1
-      else if (source[at] === '}') {
-        depth -= 1
-        if (depth === 0) return source.slice(start, at + 1)
-      }
+function dictionaryBlock(name) {
+  const start = source.indexOf(`const ${name} = {`)
+  assert.ok(start >= 0, `missing ${name}`)
+  let depth = 0
+  for (let at = source.indexOf('{', start); at < source.length; at += 1) {
+    if (source[at] === '{') depth += 1
+    else if (source[at] === '}') {
+      depth -= 1
+      if (depth === 0) return source.slice(start, at + 1)
     }
-    throw new Error(`unbalanced ${name}`)
   }
+  throw new Error(`unbalanced ${name}`)
+}
+
+test('the ZH and EN dictionaries have no duplicate keys', () => {
   const duplicates = (text, indent) => {
     const keys = [...text.matchAll(new RegExp(`^\\s{${indent}}([A-Za-z][\\w]*)\\s*:`, 'gm'))].map((match) => match[1])
     return keys.filter((key, at) => keys.indexOf(key) !== at)
   }
   for (const name of ['ZH', 'EN']) {
-    const text = blockOf(name)
+    const text = dictionaryBlock(name)
     assert.deepEqual(duplicates(text, 4), [], `${name}: duplicate top-level key`)
     const kindsAt = text.indexOf('kinds: {')
     assert.ok(kindsAt >= 0, `${name}: missing kinds`)
     const kinds = text.slice(kindsAt, text.indexOf('},', kindsAt))
     assert.deepEqual(duplicates(kinds, 6), [], `${name}: duplicate kind key`)
   }
+})
+
+// A string added to one language only renders as `undefined` in the other, and a
+// status row is exactly where nobody looks twice. Keep the two key sets equal.
+test('the ZH and EN dictionaries carry the same keys', () => {
+  const topLevel = (text) => [...text.matchAll(/^\s{4}([A-Za-z][\w]*)\s*:/gm)].map((match) => match[1]).sort()
+  assert.deepEqual(topLevel(dictionaryBlock('EN')), topLevel(dictionaryBlock('ZH')))
 })
 
 

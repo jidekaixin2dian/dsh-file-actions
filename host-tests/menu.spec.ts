@@ -90,9 +90,16 @@ async function menuFixture(initial: { state?: Record<string, unknown>; apps?: Ar
           if((path.endsWith('missing.txt')&&state.missing)||path.endsWith('missing-prose.txt'))
             return {ok:false,error:{code:'workspace-file/not-found'}};
           return {ok:true,value:{absolutePath:path,bytes:32,version:'v1'}}},
-          list:async(id,path)=>state.dirs&&state.dirs[path]
-            ?{ok:true,value:{path,entries:state.dirs[path],truncated:false}}
-            :{ok:false,error:{code:'workspace-file/not-found'}},
+          list:async(id,path,signal)=>{
+            calls.lists=(calls.lists||0)+1;
+            if(state.failListOnce&&path==='/workspace'){state.failListOnce=false;return {ok:false,error:{code:'gateway/internal'}}}
+            if(state.delayList&&path==='/workspace')await new Promise((resolve,reject)=>{
+              window.releaseList=resolve;
+              signal?.addEventListener('abort',()=>{state.listAborted=true;reject(new Error('aborted'))},{once:true});
+            });
+            return state.dirs&&state.dirs[path]
+              ?{ok:true,value:{path,entries:state.dirs[path],truncated:false}}
+              :{ok:false,error:{code:'workspace-file/not-found'}}},
           readBytes:async(id,path)=>{if(state.delayThumb)await new Promise(r=>{const w=window;w.thumbWaiters??=[];
               w.thumbWaiters.push(r);w.releaseThumb=()=>{w.thumbWaiters.splice(0).forEach(fn=>fn())}});
             const marker=path.includes('image2')?'#00ff00':'#ff0000';
@@ -633,6 +640,18 @@ it('the preview opens full size and Escape closes only the lightbox', async () =
   } finally { await fixture.dispose() }
 })
 
+it('the first upward key from a pointer-opened menu selects the last row', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-item="saveAs"]')).toBeVisible()
+    await page.keyboard.press('ArrowUp')
+    await browserExpect(page.locator('[data-dfa-item="saveAs"]')).toHaveAttribute('data-focus', 'true')
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
 it('Tab keeps keyboard focus inside the menu', async () => {
   const fixture = await menuFixture()
   const { page, errors } = fixture
@@ -885,6 +904,37 @@ it('late thumbnails retain submenu search, no matches cannot launch hidden apps,
 })
 
 
+it('a slower old copy cannot overwrite a newer clipboard result', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.evaluate(() => {
+      const w = window as any
+      w.copied = []; w.readGates = {}
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => w.copied.push(text) }, configurable: true })
+      const original = w.ctx.remote.workspaceFiles.readBytes
+      w.ctx.remote.workspaceFiles.readBytes = async (id: string, file: string, options: unknown) => {
+        if (!options || typeof options !== 'object' || !('range' in options)) return original(id, file, options)
+        const text = file.endsWith('note.txt') ? 'old' : 'new'
+        await new Promise(resolve => { w.readGates[file] = resolve })
+        return { ok: true, value: { data: new TextEncoder().encode(text), eof: true, version: 'v1' } }
+      }
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="copyContents"]').click()
+    await expect.poll(() => page.evaluate(() => Boolean((window as any).readGates['/workspace/note.txt']))).toBe(true)
+    await page.locator('#image').click({ button: 'right' })
+    await page.locator('[data-dfa-item="copyContents"]').click()
+    await expect.poll(() => page.evaluate(() => Boolean((window as any).readGates['/workspace/image.svg']))).toBe(true)
+    await page.evaluate(() => (window as any).readGates['/workspace/image.svg']())
+    await expect.poll(() => page.evaluate(() => (window as any).copied)).toEqual(['new'])
+    await page.evaluate(() => (window as any).readGates['/workspace/note.txt']())
+    await page.waitForTimeout(100)
+    expect(await page.evaluate(() => (window as any).copied)).toEqual(['new'])
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
 async function referenceFixture() {
   const fixture = await menuFixture()
   await fixture.page.evaluate(() => {
@@ -1031,6 +1081,45 @@ it('session changes and plugin unload dispose reference dialogs', async () => {
   } finally { await fixture.dispose() }
 })
 
+
+it('plugin unload removes toast state and pending visual callbacks', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="copyPath"]').click()
+    await browserExpect(page.locator('.dfa-toast')).toBeVisible()
+    await page.evaluate(() => (window as any).cleanup())
+    await browserExpect(page.locator('.dfa-toast')).toHaveCount(0)
+    expect(await page.evaluate(() => document.documentElement.hasAttribute('data-dfa-glass'))).toBe(false)
+    await page.waitForTimeout(2000)
+    await browserExpect(page.locator('.dfa-toast')).toHaveCount(0)
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('an action that settles after unload cannot resurrect the toast', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.evaluate(() => {
+      const w = window as any
+      w.clipGate = null
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: () => new Promise<void>(resolve => { w.clipGate = resolve }) },
+        configurable: true,
+      })
+    })
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="copyPath"]').click()
+    await expect.poll(() => page.evaluate(() => Boolean((window as any).clipGate))).toBe(true)
+    await page.evaluate(() => (window as any).cleanup())
+    await page.evaluate(() => (window as any).clipGate())
+    await page.waitForTimeout(200)
+    await browserExpect(page.locator('.dfa-toast')).toHaveCount(0)
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
 
 it('settings persist, change the live file menu and control the reference context window', async () => {
   const fixture = await menuFixture({ settings: true })
@@ -1417,6 +1506,96 @@ it('an ambiguous relative reference keeps reporting the file as missing', async 
     await browserExpect(menu).toBeVisible()
     await browserExpect(menu).toContainText('File not found')
     expect(await page.evaluate(() => (window as any).calls.opens)).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('a truncated nested-path scan reports an unfinished search rather than a hit or a miss', async () => {
+  const directories = Array.from({ length: 50 }, (_, index) => ({ name: `d${index}`, type: 'directory' }))
+  const fixture = await menuFixture({ state: { missing: true, exists: [
+    '/workspace/d0/docs/HANDOFF.md', '/workspace/d49/docs/HANDOFF.md',
+  ], dirs: { '/workspace': directories } } })
+  const { page } = fixture
+  try {
+    await page.locator('#nested').click({ button: 'right' })
+    const menu = page.locator('[data-dfa-menu]').first()
+    await browserExpect(menu).toContainText('Search did not finish: too many folders or a failed read')
+    await browserExpect(menu).not.toContainText('File not found')
+    await browserExpect(menu).not.toContainText('d0/docs/HANDOFF.md')
+    await browserExpect(menu.locator('[data-dfa-item="retry"]')).toBeVisible()
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('a transient directory-listing failure is not cached as a five-minute miss', async () => {
+  const fixture = await menuFixture({ state: { missing: true, failListOnce: true,
+    exists: '/workspace/review-1/docs/HANDOFF.md', dirs: {
+      '/workspace': [{ name: 'review-1', type: 'directory' }],
+    } } })
+  const { page } = fixture
+  try {
+    await page.locator('#nested').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-menu]')).toContainText('Search did not finish: too many folders or a failed read')
+    await page.locator('#nested').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-menu]')).toContainText('review-1/docs/HANDOFF.md')
+    expect(fixture.errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
+it('closing a nested-path lookup stops further filesystem probes', async () => {
+  const fixture = await menuFixture({ state: { missing: true, delayList: true, exists: '/workspace/review-1/docs/HANDOFF.md', dirs: {
+    '/workspace': [{ name: 'review-1', type: 'directory' }],
+  } } })
+  const { page } = fixture
+  try {
+    await page.locator('#nested').click({ button: 'right' })
+    await browserExpect(page.locator('[data-dfa-menu]')).toContainText('Looking for the file')
+    await page.keyboard.press('Escape')
+    await expect.poll(() => page.evaluate(() => (window as any).state.listAborted)).toBe(true)
+    await page.evaluate(() => (window as any).releaseList())
+    await page.waitForTimeout(100)
+    const calls = await page.evaluate(() => (window as any).calls)
+    expect(calls.stats, JSON.stringify(calls.paths)).toBe(1)
+    expect(fixture.errors).toEqual([])
+  } finally {
+    await page.evaluate(() => (window as any).releaseList?.()).catch(() => {})
+    await fixture.dispose()
+  }
+})
+
+it('a silent application open reports the hint without throwing asynchronously', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.bringToFront()
+    await page.locator('#note').focus()
+    expect(await page.evaluate(() => document.hasFocus())).toBe(true)
+    await page.locator('#note').click({ button: 'right' })
+    await page.locator('[data-dfa-item="openWith"]').hover()
+    await page.locator('[data-dfa-item="app:player"]').click()
+    await expect.poll(() => page.evaluate(() => (window as any).calls.opens))
+      .toEqual([{ path: '/workspace/note.txt', application: 'player' }])
+    expect(await page.evaluate(() => document.hasFocus())).toBe(true)
+    await page.waitForTimeout(2000)
+    expect(fixture.errors).toEqual([])
+    expect(await page.evaluate(() => (window as any).toastLog))
+      .toContain('Open requested; if no window appeared, the app may have failed to start or was blocked')
+  } finally { await fixture.dispose() }
+})
+
+it('the image lightbox keeps Tab focus in its modal layer', async () => {
+  const fixture = await menuFixture()
+  const { page } = fixture
+  try {
+    await page.locator('#image').click({ button: 'right' })
+    await page.locator('.dfa-thumb img').click()
+    const lightbox = page.locator('.dfa-lightbox')
+    await browserExpect(lightbox).toBeFocused()
+    await page.keyboard.press('Tab')
+    await browserExpect(lightbox).toBeFocused()
+    await page.keyboard.press('Escape')
+    await browserExpect(lightbox).toHaveCount(0)
+    await browserExpect(page.locator('[data-dfa-menu]')).toBeVisible()
+    expect(fixture.errors).toEqual([])
   } finally { await fixture.dispose() }
 })
 
