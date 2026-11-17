@@ -43,27 +43,27 @@ File Actions 为 DeepSeek Harness（DSH）里的文件引用提供右键菜单�
 
 在插件市场搜索 **dsh-file-actions**，确认作者为 **jidekaixin2dian** 后安装；已有用户在「已安装」中检查更新。市场数据与 npm 镜像可能有同步延迟。
 
-也可完全退出 DSH 后，使用同一条 CLI 命令安装或更新：
+Desktop 用户在应用内插件市场安装、更新或卸载，按提示重启。Web/CLI 用户停止对应会话后，可对 `web` profile 执行以下命令；重复执行即可更新：
 
 ```powershell
-dsh plugin --profile desktop add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
+dsh plugin --profile web add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
 ```
 
-重新打开 DSH 生效。离线包可从 [Release](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) 下载；普通 `npm install` 不会把插件注册进 DSH。
+重新启动对应会话生效。离线包可从 [Release](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) 下载；普通 `npm install` 不会把插件注册进 DSH。
 
 <details>
-<summary>其他安装方式与卸载</summary>
+<summary>其他 Web/CLI 安装方式与卸载</summary>
 
 GitHub Release 安装：
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
+dsh plugin --profile web add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
 ```
 
-卸载后重新打开 DSH：
+卸载后重新启动对应会话：
 
 ```powershell
-dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions
+dsh plugin --profile web remove @jidekaixin2dian/dsh-file-actions
 ```
 
 </details>
