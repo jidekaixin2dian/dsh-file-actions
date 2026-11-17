@@ -2,7 +2,7 @@
 
 **代码引用连同来源一起带走，交付文件右键就能接着用。**
 
-[English](README.en.md) · [npm · 0.1.22](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.22) · [插件市场](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [下载](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [更新记录](CHANGELOG.md)
+[English](README.en.md) · [npm · 0.1.23](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.23) · [插件市场](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [下载](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [更新记录](CHANGELOG.md)
 
 File Actions 为 DeepSeek Harness（DSH）里的文件引用提供右键菜单。从代码行号、交付卡片或图片进入，直接查看上下文、选择应用、预览、定位和复制。
 

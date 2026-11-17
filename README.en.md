@@ -2,7 +2,7 @@
 
 **Copy code with its source. Keep working from delivered files.**
 
-[中文](README.md) · [npm · 0.1.22](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.22) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
+[中文](README.md) · [npm · 0.1.23](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.23) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
 
 File Actions adds file and link actions to DeepSeek Harness (DSH) conversations. Right-click a code reference, delivery card or image to continue from what the agent has shown you.
 

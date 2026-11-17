@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.23 — 2026-11-17
+
+### 中文
+
+- 菜单会话独立管理取消与关闭，替换菜单时结束旧操作，旧菜单的取消不会干扰新菜单。
+- 应用关联与预览缓存各自管理失效和释放；卸载后丢弃迟到结果，避免重新激活旧界面或缓存工作。
+- 明确引用候选、已核实文件目标与读取结果，拆分预览视图和测试夹具，保留现有菜单交互与零构建安装方式。
+
+### English
+
+- Give each menu session its own cancellation and close lifecycle. Replacing a menu ends its previous operation without letting an old cancellation affect the new menu.
+- Give application and preview caches explicit invalidation and disposal ownership; discard late results after unload so old UI or cache work cannot resume.
+- Make reference candidates, verified file targets and read results explicit, and separate preview views and test fixtures while preserving menu interactions and installation without a build step.
+
 ## 0.1.22 — 2026-11-15
 
 - 深路径查找（散文里写成 `docs/x.md`，文件却在更深的目录）不再越界：目录列举与
