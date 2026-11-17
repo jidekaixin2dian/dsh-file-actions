@@ -1,5 +1,7 @@
 # 开发与验证
 
+先读 [代码地图](architecture.md) 定位职责，再按本页准备与验证。
+
 
 
 需要 Node >=24、Git、pnpm：

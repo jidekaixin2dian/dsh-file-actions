@@ -2,7 +2,7 @@
 
 **Copy code with its source. Keep working from delivered files.**
 
-[中文](README.md) · [npm · 0.1.22](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.22) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
+[中文](README.md) · [npm · 0.1.23](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.23) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
 
 File Actions adds file and link actions to DeepSeek Harness (DSH) conversations. Right-click a code reference, delivery card or image to continue from what the agent has shown you.
 
@@ -43,25 +43,25 @@ Requires **DSH >=0.2.1-rc.2 and Node >=24**. CI verifies DSH rc.2 / rc.3 / rc.4 
 
 Search for **dsh-file-actions** in the marketplace and verify author **jidekaixin2dian**. Existing users can check updates under installed plugins. Catalog and registry mirrors may take time to refresh.
 
-Alternatively, quit DSH completely and use the same command for installation or updates:
+Desktop users install, update and remove plugins through the in-app marketplace, restarting when prompted. Web/CLI users can stop the corresponding session and run this command for the `web` profile; repeat it to update:
 
 ```powershell
-dsh plugin --profile desktop add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
+dsh plugin --profile web add @jidekaixin2dian/dsh-file-actions --registry=https://registry.npmjs.org
 ```
 
-Reopen DSH. Downloadable archives are available in [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest). A plain `npm install` does not register the plugin with DSH.
+Restart the corresponding session. Downloadable archives are available in [Releases](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest). A plain `npm install` does not register the plugin with DSH.
 
 <details>
-<summary>Alternative installation and removal</summary>
+<summary>Alternative Web/CLI installation and removal</summary>
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
+dsh plugin --profile web add https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest/download/dsh-file-actions.tgz
 ```
 
-Remove, then reopen DSH:
+Remove, then restart the corresponding session:
 
 ```powershell
-dsh plugin --profile desktop remove @jidekaixin2dian/dsh-file-actions
+dsh plugin --profile web remove @jidekaixin2dian/dsh-file-actions
 ```
 
 </details>
