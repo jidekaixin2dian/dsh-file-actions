@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.24 — 2026-11-21
+
+### 中文
+
+- 兼容验证扩展到 DSH **0.2.2-rc.5**（`9c2670d3`），CI 矩阵同步加入该版本；桌面与 Web 客户端行为保持兼容。
+- 视频预览不再被图片的 8 MiB 上限拦掉：56 MB 的 1080p 成片照样出首帧。图片仍是一次
+  8 MiB 读；能解码的容器（mp4/m4v/mov/webm/ogv，与浏览器预览同一张清单）按宿主 2 MiB
+  的窗口分块读到 64 MiB，缓存里只留解码后的那一帧；mkv/avi 这类容器不再白读——`<video>`
+  本来就给不出帧。
+- 换到别的文件时中止还在进行的视频读取，不再为一个已经关掉的菜单把整段视频读进内存。
+- 没有可用缩略图时，预览块收成一行 34px 的灰字，不再画一块约 120px 的空面板；加载中仍
+  保留占位，菜单不会在指针下突然长高。
+
+### English
+
+- Extend verified host compatibility to DSH **0.2.2-rc.5** (`9c2670d3`) and add it to the CI matrix; Desktop and Web client behavior remains compatible.
+- A video preview no longer loses to the 8 MiB image cap: a 56 MB 1080p clip still yields its
+  first frame. Images keep one 8 MiB read; a decodable container (mp4/m4v/mov/webm/ogv, the same
+  list the browser preview trusts) is read in the Host's 2 MiB windows up to 64 MiB, and only the
+  decoded frame stays cached. MKV/AVI containers are not read at all: `<video>` yields no frame
+  from them, so pulling the whole clip would be pure waste.
+- Moving to another file abandons the video read in flight instead of pulling a whole clip into
+  memory for a menu that is already gone.
+- With nothing to show, the preview block collapses to one 34px line instead of painting a
+  ~120px empty panel; loading still reserves the frame so the menu never grows under the pointer.
+
 ## 0.1.23 — 2026-11-17
 
 ### 中文

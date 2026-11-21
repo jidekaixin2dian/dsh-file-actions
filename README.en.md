@@ -2,7 +2,7 @@
 
 **Copy code with its source. Keep working from delivered files.**
 
-[中文](README.md) · [npm · 0.1.23](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.23) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
+[中文](README.md) · [npm · 0.1.24](https://www.npmjs.com/package/@jidekaixin2dian/dsh-file-actions/v/0.1.24) · [Marketplace](https://awesome-dsh-plugin.com/p/jidekaixin2dian/dsh-file-actions/) · [Download](https://github.com/jidekaixin2dian/dsh-file-actions/releases/latest) · [Changelog](CHANGELOG.md)
 
 File Actions adds file and link actions to DeepSeek Harness (DSH) conversations. Right-click a code reference, delivery card or image to continue from what the agent has shown you.
 
@@ -39,7 +39,7 @@ Choose the full or compact menu, set the number of surrounding context lines, an
 
 ## Install and update
 
-Requires **DSH >=0.2.1-rc.2 and Node >=24**. CI verifies DSH rc.2 / rc.3 / rc.4 / rc.5 / 0.2.2-alpha.3 / 0.2.2-rc.1.
+Requires **DSH >=0.2.1-rc.2 and Node >=24**. CI verifies DSH rc.2 / rc.3 / rc.4 / rc.5 / 0.2.2-alpha.3 / 0.2.2-rc.1 / 0.2.2-rc.5.
 
 Search for **dsh-file-actions** in the marketplace and verify author **jidekaixin2dian**. Existing users can check updates under installed plugins. Catalog and registry mirrors may take time to refresh.
 

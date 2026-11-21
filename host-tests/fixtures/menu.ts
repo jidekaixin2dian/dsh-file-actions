@@ -43,6 +43,7 @@ export async function menuFixture(initial: { state?: Record<string, unknown>; ap
   const server = createServer((req, res) => {
     if (req.url === '/client.js') { res.setHeader('content-type', 'text/javascript'); res.end(client); return }
     if (req.url === '/icon.svg') { res.setHeader('content-type', 'image/svg+xml'); res.end(fs.readFileSync(path.join(process.env.DFA_PROJECT!, 'icon.svg'))); return }
+    if (req.url === '/poster.mp4') { res.setHeader('content-type', 'video/mp4'); res.end(fs.readFileSync(path.join(process.env.DFA_PROJECT!, 'host-tests/fixtures/poster.mp4'))); return }
     res.setHeader('content-type', 'text/html; charset=utf-8')
     res.end(`<!doctype html><html lang="en" style="font-size:16px;color-scheme:dark"><head><meta charset="utf-8">
       <style>body{font:16px system-ui;background:#181818;color:#eee;padding:28px}button,code,a{margin:8px}
