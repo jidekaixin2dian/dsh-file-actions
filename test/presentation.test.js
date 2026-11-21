@@ -87,6 +87,17 @@ test('the preview block clips its image instead of letting it overflow the heade
   assert.match(img[1], /object-fit:contain/)
 })
 
+// A file without a poster used to paint a ~100px empty panel over a nine-row menu.
+test('a preview with nothing to show stops reserving a frame', () => {
+  const rule = source.match(/\.dfa-thumb\[data-state="empty"\]\{([\s\S]*?)\}/)
+  assert.ok(rule, 'the empty preview rule is missing')
+  assert.match(rule[1], /height:auto/)
+  assert.match(rule[1], /border:0/)
+  // Loading keeps the frame so the menu does not grow under the pointer; only a
+  // finished answer with no poster collapses.
+  assert.match(source, /wrap\.dataset\.state = url \? 'ready' : this\.thumbnailDone \? 'empty' : 'loading'/)
+})
+
 test('the link menu uses distinct, meaningful glyphs', () => {
   const model = api.buildLinkMenuModel({ url: 'https://github.com/x/y', text: 'v0.1.12', t: zh })
   const icons = model.sections.flat().map((item) => `${item.id}:${item.icon}`)

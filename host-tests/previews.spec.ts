@@ -490,6 +490,50 @@ it('an ambiguous relative reference keeps reporting the file as missing', async 
   } finally { await fixture.dispose() }
 })
 
+it('a large video still gets its first frame and an unusable preview stops reserving a panel', async () => {
+  const fixture = await menuFixture()
+  const { page, errors } = fixture
+  try {
+    // The real workspace files read is capped at 2 MiB per call and refuses a whole
+    // file past 32 MiB, so a 56 MB promo clip used to answer "no thumbnail" without
+    // reading anything. Serve a real container through the ranged contract instead.
+    await page.evaluate(async () => {
+      const w = window as any
+      const bytes = new Uint8Array(await (await fetch('/poster.mp4')).arrayBuffer())
+      w.calls.ranges = []
+      w.sizes = { promo: 56 * 1024 * 1024, huge: 200 * 1024 * 1024 }
+      w.ctx.remote.workspaceFiles.stat = async (_id: string, path: string) => ({
+        ok: true, value: { absolutePath: path, bytes: path.includes('huge') ? w.sizes.huge : w.sizes.promo, version: path },
+      })
+      w.ctx.remote.workspaceFiles.readBytes = async (_id: string, path: string, options: any) => {
+        w.calls.ranges.push(options?.range || null)
+        const offset = options?.range?.offset ?? 0
+        const end = Math.min(bytes.length, offset + (options?.range?.length ?? bytes.length))
+        return { ok: true, value: { data: bytes.slice(offset, end), eof: end >= bytes.length, offset,
+          absolutePath: path, version: path, bytes: bytes.length } }
+      }
+    })
+
+    await page.locator('#image').evaluate((el) => { (el as HTMLElement).dataset.fileActionsPath = 'promo.mp4' })
+    await page.locator('#image').click({ button: 'right' })
+    await browserExpect(page.locator('.dfa-thumb img')).toBeVisible()
+    expect(await page.locator('.dfa-thumb img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+    // Ranged windows, not one whole-file answer.
+    expect((await page.evaluate(() => (window as any).calls.ranges)).every((range: any) => range && typeof range.length === 'number')).toBe(true)
+    await page.keyboard.press('Escape')
+
+    // Past the read ceiling there is nothing to show; the block must not keep the
+    // ~100px frame that made a nine-row menu mostly empty space.
+    await page.locator('#image').evaluate((el) => { (el as HTMLElement).dataset.fileActionsPath = 'huge.mov' })
+    await page.locator('#image').click({ button: 'right' })
+    await browserExpect(page.locator('.dfa-thumb img')).toHaveCount(0)
+    await browserExpect(page.locator('.dfa-thumb')).toHaveText('No thumbnail available')
+    const thumb = await page.locator('.dfa-thumb').boundingBox()
+    expect(thumb!.height).toBeLessThan(52)
+    expect(errors).toEqual([])
+  } finally { await fixture.dispose() }
+})
+
 it('the image lightbox keeps Tab focus in its modal layer', async () => {
   const fixture = await menuFixture()
   const { page } = fixture
